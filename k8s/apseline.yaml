@@ -11,13 +11,13 @@ spec:
   allocateLoadBalancerNodePorts: false
   ports:
     - port: 80
-      targetPort: 80
+      targetPort: 3000
       protocol: TCP
       name: http
-    - port: 443
-      targetPort: 443
-      protocol: TCP
-      name: https
+    # - port: 443
+    #   targetPort: 443
+    #   protocol: TCP
+    #   name: https
   selector:
     name: apseline
 
@@ -46,8 +46,8 @@ spec:
           imagePullPolicy: Always
           ports:
             - name: http
-              containerPort: 80
+              containerPort: 3000
               protocol: TCP
-            - name: https
-              containerPort: 443
-              protocol: TCP
+            # - name: https
+            #   containerPort: 443
+            #   protocol: TCP
