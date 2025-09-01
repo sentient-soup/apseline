@@ -9,7 +9,8 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  PATH: './packages/web'
+  IMAGE_NAME: apseline-web
 
 jobs:
   build:
@@ -20,7 +21,6 @@ jobs:
       # This is used to complete the identity challenge
       # with sigstore/fulcio when running outside of PRs.
       id-token: write
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -48,18 +48,12 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           platforms: linux/arm64
-          context: './packages/web'
+          context: ${{ env.PATH }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      # Sign the resulting Docker image digest except on PRs.
-      # This will only write to the public Rekor transparency log when the Docker
-      # repository is public to avoid leaking data.  If you would like to publish
-      # transparency data even for private images, pass --force to cosign below.
-      # https://github.com/sigstore/cosign
       - name: Sign the published Docker image
         if: ${{ github.event_name != 'pull_request' }}
         env:
