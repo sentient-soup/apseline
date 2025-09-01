@@ -1,4 +1,4 @@
-name: Docker
+name: Build Web
 
 on:
   push:
@@ -10,7 +10,7 @@ on:
 env:
   REGISTRY: ghcr.io
   BUILD_PATH: './packages/web'
-  IMAGE_NAME: apseline-web
+  PACKAGE: web
 
 jobs:
   build:
@@ -42,7 +42,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ github.repository }}-${{ env.PACKAGE }}
       - name: Build and push Docker image
         id: build-and-push
         uses: docker/build-push-action@v5
