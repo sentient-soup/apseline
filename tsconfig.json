@@ -22,7 +22,7 @@
     "noUncheckedSideEffectImports": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
+      "@/*": ["packages/web/src/*"],
       "@mui/material": ["./node_modules/@mui/joy"]
     }
   }

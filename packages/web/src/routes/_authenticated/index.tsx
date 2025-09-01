@@ -1,8 +1,8 @@
-import { AppCard } from '@/components/AppCard';
+import { AppCard } from 'packages/web/src/components/AppCard';
 import Stack from '@mui/joy/Stack';
 import { createFileRoute } from '@tanstack/react-router';
 
-export const Route = createFileRoute('/')({
+export const Route = createFileRoute('/_authenticated/')({
 	component: App,
 });
 
@@ -73,7 +73,7 @@ function App() {
 			icon: 'https://r2.foundryvtt.com/website-static-public/assets/icons/fvtt.png',
 			domain: 'ahis1',
 		},
-	];
+	]
 	return (
 		<Stack
 			direction="row"
@@ -89,5 +89,5 @@ function App() {
 				<AppCard key={`status-${app.name}`} app={app} />
 			))}
 		</Stack>
-	);
+	)
 }
