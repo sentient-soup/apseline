@@ -1,7 +1,7 @@
-import Header from 'packages/web/src/components/Header';
 import { Box } from '@mui/material';
 import { createFileRoute, redirect, Outlet } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
+import Header from '@/components/Header';
  
 export const Route = createFileRoute('/_authenticated')({
   beforeLoad: ({ context, location }) => {

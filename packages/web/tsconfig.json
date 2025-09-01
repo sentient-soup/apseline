@@ -22,8 +22,8 @@
     "noUncheckedSideEffectImports": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["packages/web/src/*"],
-      "@mui/material": ["./node_modules/@mui/joy"]
+      "@/*": ["src/*"],
+      "@mui/material": ["../../node_modules/@mui/joy"]
     }
   }
 }

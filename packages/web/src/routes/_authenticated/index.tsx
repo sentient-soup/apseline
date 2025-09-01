@@ -1,6 +1,6 @@
-import { AppCard } from 'packages/web/src/components/AppCard';
 import Stack from '@mui/joy/Stack';
 import { createFileRoute } from '@tanstack/react-router';
+import { AppCard } from '@/components/AppCard';
 
 export const Route = createFileRoute('/_authenticated/')({
 	component: App,
