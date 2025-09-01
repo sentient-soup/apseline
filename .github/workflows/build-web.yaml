@@ -9,7 +9,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  PATH: './packages/web'
+  BUILD_PATH: './packages/web'
   IMAGE_NAME: apseline-web
 
 jobs:
@@ -48,7 +48,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           platforms: linux/arm64
-          context: ${{ env.PATH }}
+          context: ${{ env.BUILD_PATH }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
