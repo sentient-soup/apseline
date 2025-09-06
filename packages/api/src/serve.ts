@@ -3,22 +3,19 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { initializeContext, cleanupContext, getContainer } from './context';
-import oauth from './oauth';
+import auth from './auth/auth';
 
-// Create the main application
 export function createApp(): Hono {
 	const app = new Hono();
 
-	// Get container for dependency injection
 	const container = getContainer();
 	const config = container.resolve('config');
 
-	// Middleware
 	app.use('*', logger());
 	app.use(
 		'*',
 		cors({
-			origin: ['http://localhost:5173'],
+			origin: ['http://localhost:3000'],
 			allowHeaders: ['Content-Type', 'Authorization'],
 			allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
 			exposeHeaders: ['Content-Type'],
@@ -26,7 +23,6 @@ export function createApp(): Hono {
 		}),
 	);
 
-	// Health check endpoint
 	app.get('/health', async (c) => {
 		const dbService = container.resolve('database');
 		const isHealthy = await dbService.healthCheck();
@@ -38,7 +34,6 @@ export function createApp(): Hono {
 		}, isHealthy ? 200 : 503);
 	});
 
-	// API routes
 	app.get('/', (c) => {
 		return c.json({
 			message: 'Apseline API',
@@ -47,19 +42,18 @@ export function createApp(): Hono {
 		});
 	});
 
-	// Mount OAuth routes
-	app.route('/', oauth);
+	app.route('/', auth);
 
-	// API v1 routes (for future expansion)
-	const v1 = new Hono();
+	const router = new Hono();
 	
-	// Example: Users endpoint
-	v1.get('/users', async (c) => {
+	router.get('/users', async (c) => {
 		const dbService = container.resolve('database');
 		const knex = dbService.getKnex();
 		
 		try {
-			const users = await knex('users').select('id', 'username', 'email', 'created_at');
+			const users = await knex('users')
+				.select('id', 'username', 'email', 'first_name', 'last_name', 'created_at', 'last_login_at')
+				.where('is_active', true);
 			return c.json({ users });
 		} catch (error) {
 			console.error('Error fetching users:', error);
@@ -67,8 +61,7 @@ export function createApp(): Hono {
 		}
 	});
 
-	// Mount v1 routes
-	app.route('/api/v1', v1);
+	app.route('/api', router);
 
 	// 404 handler
 	app.notFound((c) => {
@@ -87,7 +80,6 @@ export function createApp(): Hono {
 // Start the server
 export async function startServer(): Promise<void> {
 	try {
-		// Initialize application context
 		await initializeContext();
 		
 		// Create the app

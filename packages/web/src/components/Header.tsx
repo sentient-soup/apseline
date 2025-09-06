@@ -1,11 +1,38 @@
 import Box from "@mui/joy/Box";
 import Button from "@mui/joy/Button";
 import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import Menu from "@mui/joy/Menu";
+import MenuItem from "@mui/joy/MenuItem";
+import ListItemDecorator from "@mui/joy/ListItemDecorator";
+import ListDivider from "@mui/joy/ListDivider";
 
-import { DeviceHub } from "@mui/icons-material";
+import { DeviceHub, AccountCircle, Logout } from "@mui/icons-material";
 import ColorSchemeToggle from "./ColorToggle";
+import { useAuth } from "../auth";
+import { useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 
 export default function Header() {
+	const { user, logout } = useAuth();
+	const navigate = useNavigate();
+	const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+	const open = Boolean(anchorEl);
+
+	const handleClick = (event: React.MouseEvent<HTMLElement>) => {
+		setAnchorEl(event.currentTarget);
+	};
+
+	const handleClose = () => {
+		setAnchorEl(null);
+	};
+
+	const handleLogout = async () => {
+		await logout();
+		navigate({ to: '/login' });
+		handleClose();
+	};
+
 	return (
 		<Box
 			component="header"
@@ -82,6 +109,46 @@ export default function Header() {
 					}}
 				>
 					<ColorSchemeToggle />
+					{user && (
+						<>
+							<Button
+								id="user-menu-button"
+								variant="plain"
+								color="neutral"
+								onClick={handleClick}
+								aria-controls={open ? 'user-menu' : undefined}
+								aria-haspopup="true"
+								aria-expanded={open ? 'true' : undefined}
+								startDecorator={<AccountCircle />}
+								sx={{ minWidth: 'auto' }}
+							>
+								<Typography level="body-sm" sx={{ display: { xs: 'none', sm: 'block' } }}>
+									{user.username}
+								</Typography>
+							</Button>
+							<Menu
+								id="user-menu"
+								anchorEl={anchorEl}
+								open={open}
+								onClose={handleClose}
+								aria-labelledby="user-menu-button"
+								placement="bottom-end"
+							>
+								<MenuItem disabled>
+									<Typography level="body-sm" color="neutral">
+										{user.email}
+									</Typography>
+								</MenuItem>
+								<ListDivider />
+								<MenuItem onClick={handleLogout}>
+									<ListItemDecorator>
+										<Logout />
+									</ListItemDecorator>
+									Logout
+								</MenuItem>
+							</Menu>
+						</>
+					)}
 				</Box>
 			</Box>
 		</Box>

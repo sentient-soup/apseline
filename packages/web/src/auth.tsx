@@ -1,16 +1,31 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 
+// API configuration
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
 interface User {
   id: string
   username: string
   email: string
+  first_name?: string
+  last_name?: string
 }
 
 interface AuthState {
   isAuthenticated: boolean
   user: User | null
+  isLoading: boolean
   login: (username: string, password: string) => Promise<void>
-  logout: () => void
+  logout: () => Promise<void>
+  register: (userData: RegisterData) => Promise<void>
+}
+
+interface RegisterData {
+  username: string
+  email: string
+  password: string
+  first_name?: string
+  last_name?: string
 }
 
 const AuthContext = createContext<AuthState | undefined>(undefined)
@@ -24,18 +39,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const token = localStorage.getItem('auth-token')
     if (token) {
-      // Validate token with your API
-      fetch('/api/validate-token', {
+      // Validate token with our API
+      fetch(`${API_BASE_URL}/auth/me`, {
         headers: { Authorization: `Bearer ${token}` },
       })
-        .then((response) => response.json())
-        .then((userData) => {
-          if (userData.valid) {
-            setUser(userData.user)
-            setIsAuthenticated(true)
-          } else {
-            localStorage.removeItem('auth-token')
+        .then((response) => {
+          if (response.ok) {
+            return response.json()
           }
+          throw new Error('Token validation failed')
+        })
+        .then((data) => {
+          setUser(data.user)
+          setIsAuthenticated(true)
         })
         .catch(() => {
           localStorage.removeItem('auth-token')
@@ -52,38 +68,74 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        Loading...
+        <div className="text-lg">Loading...</div>
       </div>
     )
   }
 
   const login = async (username: string, password: string) => {
-    // Replace with your authentication logic
-    const response = await fetch('/api/login', {
+    const response = await fetch(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password }),
     })
 
-    if (response.ok) {
-      const userData = await response.json()
-      setUser(userData)
-      setIsAuthenticated(true)
-      // Store token for persistence
-      localStorage.setItem('auth-token', userData.token)
-    } else {
-      throw new Error('Authentication failed')
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Authentication failed')
     }
+
+    const data = await response.json()
+    setUser(data.user)
+    setIsAuthenticated(true)
+    localStorage.setItem('auth-token', data.token)
   }
 
-  const logout = () => {
+  const register = async (userData: RegisterData) => {
+    const response = await fetch(`${API_BASE_URL}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(userData),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Registration failed')
+    }
+
+    const data = await response.json()
+    setUser(data.user)
+    setIsAuthenticated(true)
+    localStorage.setItem('auth-token', data.token)
+  }
+
+  const logout = async () => {
+    const token = localStorage.getItem('auth-token')
+    if (token) {
+      try {
+        await fetch(`${API_BASE_URL}/auth/logout`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        })
+      } catch (error) {
+        console.error('Logout request failed:', error)
+      }
+    }
+    
     setUser(null)
     setIsAuthenticated(false)
     localStorage.removeItem('auth-token')
   }
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, login, logout }}>
+    <AuthContext.Provider value={{ 
+      isAuthenticated, 
+      user, 
+      isLoading, 
+      login, 
+      logout, 
+      register 
+    }}>
       {children}
     </AuthContext.Provider>
   )

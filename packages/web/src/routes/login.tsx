@@ -6,11 +6,13 @@ import Input from '@mui/joy/Input';
 import Typography from '@mui/joy/Typography';
 import Checkbox from '@mui/joy/Checkbox';
 import Stack from '@mui/joy/Stack';
-import { createFileRoute, redirect } from '@tanstack/react-router';
-// import GoogleIcon from './GoogleIcon';
+import Alert from '@mui/joy/Alert';
+import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
+import { useAuth } from '../auth';
+import { useState } from 'react';
 
 interface FormElements extends HTMLFormControlsCollection {
-  email: HTMLInputElement;
+  username: HTMLInputElement;
   password: HTMLInputElement;
   persistent: HTMLInputElement;
 }
@@ -31,6 +33,30 @@ export const Route = createFileRoute('/login')({
 })
 
 export default function LoginComponent() {
+  const { login } = useAuth();
+  const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (event: React.FormEvent<SignInFormElement>) => {
+    event.preventDefault();
+    setIsLoading(true);
+    setError(null);
+
+    const formElements = event.currentTarget.elements;
+    const username = formElements.username.value;
+    const password = formElements.password.value;
+
+    try {
+      await login(username, password);
+      navigate({ to: '/' });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Login failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
       <Box
         sx={{
@@ -83,26 +109,35 @@ export default function LoginComponent() {
                 <Typography component="h1" level="h3">
                   Sign in
                 </Typography>
+                <Typography level="body-sm" color="neutral">
+                  Enter your username and password to access your account
+                </Typography>
               </Stack>
-              <form
-                onSubmit={(event: React.FormEvent<SignInFormElement>) => {
-                  event.preventDefault();
-                  const formElements = event.currentTarget.elements;
-                  const data = {
-                    email: formElements.email.value,
-                    password: formElements.password.value,
-                    persistent: formElements.persistent.checked,
-                  };
-                  alert(JSON.stringify(data, null, 2));
-                }}
-              >
+              
+              {error && (
+                <Alert color="danger" variant="soft">
+                  {error}
+                </Alert>
+              )}
+
+              <form onSubmit={handleSubmit}>
                 <FormControl required>
-                  <FormLabel>Email</FormLabel>
-                  <Input type="email" name="email" />
+                  <FormLabel>Username</FormLabel>
+                  <Input 
+                    type="text" 
+                    name="username" 
+                    disabled={isLoading}
+                    placeholder="Enter your username"
+                  />
                 </FormControl>
                 <FormControl required>
                   <FormLabel>Password</FormLabel>
-                  <Input type="password" name="password" />
+                  <Input 
+                    type="password" 
+                    name="password" 
+                    disabled={isLoading}
+                    placeholder="Enter your password"
+                  />
                 </FormControl>
                 <Stack sx={{ gap: 4, mt: 2 }}>
                   <Box
@@ -112,13 +147,18 @@ export default function LoginComponent() {
                       alignItems: 'center',
                     }}
                   >
-                    <Checkbox size="sm" label="Remember me" name="persistent" />
+                    <Checkbox size="sm" label="Remember me" name="persistent" disabled={isLoading} />
                     {/* <Link level="title-sm" href="#replace-with-a-link">
                       Forgot your password?
                     </Link> */}
                   </Box>
-                  <Button type="submit" fullWidth>
-                    Sign in
+                  <Button 
+                    type="submit" 
+                    fullWidth 
+                    loading={isLoading}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? 'Signing in...' : 'Sign in'}
                   </Button>
                 </Stack>
               </form>
