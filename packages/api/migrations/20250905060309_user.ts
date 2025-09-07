@@ -5,15 +5,13 @@ export async function up(knex: Knex): Promise<void> {
 		table.uuid('id').primary().defaultTo(knex.fn.uuid());
 		table.string('username').unique().notNullable();
 		table.string('email').unique().notNullable();
+		table.timestamp('created').notNullable().defaultTo(knex.fn.now());
 		table.string('password').notNullable();
 		table.string('avatarUrl').nullable();
 		table.timestamp('lastLogin').nullable();
-		table.timestamp('created').notNullable().defaultTo(knex.fn.now());
-		table.timestamps(true, true);
 		
 		table.index(['email']);
 		table.index(['username']);
-		table.index(['isActive']);
 	});
 }
 
