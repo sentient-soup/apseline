@@ -65,7 +65,7 @@ spec:
   allocateLoadBalancerNodePorts: false
   ports:
     - port: 80
-      targetPort: 3001
+      targetPort: 80
       protocol: TCP
       name: http
   selector:
@@ -101,5 +101,5 @@ spec:
                 name: db-secrets
           ports:
             - name: http
-              containerPort: 3001
+              containerPort: 80
               protocol: TCP

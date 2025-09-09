@@ -19,14 +19,20 @@ export type RouteContext = Context<HonoContext>;
 
 export function startServer(): void {
   try {
-    const port = Number(process.env.PORT) || 3000;
-    const host = process.env.HOST || 'localhost';
-    const nodeEnv = process.env.NODE_ENV || 'development';
+    const nodeEnv = process.env.NODE_ENV ?? 'development';
+    const port = process.env.PORT ? Number(process.env.PORT) : 3000;
+    const host = process.env.APSELINE_WEB_URL ?? 'localhost';
+    const url = `http://${host}:${port}`;
 
     const app = new Hono<HonoContext>();
     app.use('*', logger());
     app.use('*', timing());
-    app.use('*', cors({ origin: ['http://localhost:3000'] }));
+    app.use(
+      '*',
+      cors({
+        origin: [url],
+      }),
+    );
 
     app.use('*', useContainer);
     app.get('/health', useHealthCheck);
@@ -48,9 +54,9 @@ export function startServer(): void {
         port,
       },
       (info) => {
-        console.log(`🚀 Server is running on http://${host}:${info.port}`);
+        console.log(`🚀 Server is running on ${url}`);
         console.log(`📊 Environment: ${nodeEnv}`);
-        console.log(`🔗 Health check: http://${host}:${info.port}/health`);
+        console.log(`🔗 Health check: ${url}/health`);
       },
     );
 
