@@ -2,8 +2,7 @@ import type { ReactNode } from 'react';
 import { createContext, useContext, useEffect, useState } from 'react';
 
 // API configuration
-const API_BASE_URL =
-  import.meta.env.APSELINE_API_URL || 'http://localhost:3001';
+const apiUrl = import.meta.env.AL_API_URL || 'http://localhost:3001';
 
 interface User {
   id: string;
@@ -40,7 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const token = localStorage.getItem('auth-token');
     if (token) {
-      fetch(`${API_BASE_URL}/auth/me`, {
+      fetch(`${apiUrl}/auth/me`, {
         headers: { Authorization: `Bearer ${token}` },
       })
         .then((response) => {
@@ -73,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const login = async (username: string, password: string) => {
-    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+    const response = await fetch(`${apiUrl}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password }),
@@ -91,7 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const register = async (userData: RegisterData) => {
-    const response = await fetch(`${API_BASE_URL}/auth/register`, {
+    const response = await fetch(`${apiUrl}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(userData),
@@ -112,7 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const token = localStorage.getItem('auth-token');
     if (token) {
       try {
-        await fetch(`${API_BASE_URL}/auth/logout`, {
+        await fetch(`${apiUrl}/auth/logout`, {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}` },
         });
