@@ -6,8 +6,8 @@ import {
 } from 'awilix';
 import knex, { type Knex } from 'knex';
 import memoize from 'memoize';
-import knexConfig from '../knexfile';
-import { AuthService } from './auth/service';
+import { AuthService } from './auth/service.js';
+import knexConfig from './knexfile.js';
 
 const globals = {
   db: memoize(() => knex(knexConfig)),

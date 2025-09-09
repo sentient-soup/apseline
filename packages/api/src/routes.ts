@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { routes as authRoutes } from './auth';
+import { routes as authRoutes } from './auth/index.js';
 
 export default function routes() {
   const router = new Hono();

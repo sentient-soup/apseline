@@ -1,6 +1,6 @@
 import type { Next } from 'hono';
-import { buildContainer } from './container';
-import type { RouteContext } from './serve';
+import { buildContainer } from './container.js';
+import type { RouteContext } from './serve.js';
 
 export async function useContainer(c: RouteContext, next: Next) {
   const container = buildContainer();

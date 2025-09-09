@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
-import type { HonoContext, RouteContext } from '../serve';
-import { protect } from './utils';
+import type { HonoContext } from '../serve.js';
+import { protect } from './utils.js';
 
 export default function routes(): Hono<HonoContext> {
   const router = new Hono<HonoContext>();

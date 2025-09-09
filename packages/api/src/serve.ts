@@ -4,9 +4,9 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 
 import { timing } from 'hono/timing';
-import type { Container } from './container';
-import { useContainer, useHealthCheck, useInfo } from './middleware';
-import routes from './routes';
+import type { Container } from './container.ts';
+import { useContainer, useHealthCheck, useInfo } from './middleware.js';
+import routes from './routes.js';
 
 export interface HonoContext {
   Variables: {

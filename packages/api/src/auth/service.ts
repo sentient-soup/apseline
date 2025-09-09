@@ -1,8 +1,7 @@
 import { hash } from 'node:crypto';
 import type { Knex } from 'knex';
-import type { Container } from '../container';
-import type { User } from './types';
-import { decrypt, encrypt } from './utils';
+import type { Container } from '../container.js';
+import { decrypt, encrypt } from './utils.js';
 
 export class AuthService {
   private db: Knex;
