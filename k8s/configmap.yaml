@@ -5,4 +5,4 @@ metadata:
 data:
   DB_NAME: 'apseline'
   APSELINE_WEB_URL: 'apseline.perihelion.live'
-  PORT: 80
+  PORT: '80'
