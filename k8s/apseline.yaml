@@ -2,10 +2,10 @@
 kind: Service
 apiVersion: v1
 metadata:
-  name: apseline
+  name: apseline-web
   namespace: default
   labels:
-    name: apseline
+    name: apseline-web
 spec:
   type: LoadBalancer
   allocateLoadBalancerNodePorts: false
@@ -19,29 +19,29 @@ spec:
     #   protocol: TCP
     #   name: https
   selector:
-    name: apseline
+    name: apseline-web
 
 ---
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: apseline
+  name: apseline-web
   namespace: default
   labels:
-    name: apseline
+    name: apseline-web
     version: '0.1.0'
 spec:
   replicas: 1
   selector:
     matchLabels:
-      name: apseline
+      name: apseline-web
   template:
     metadata:
       labels:
-        name: apseline
+        name: apseline-web
     spec:
       containers:
-        - name: apseline
+        - name: apseline-web
           image: ghcr.io/sentient-soup/apseline-web:master
           imagePullPolicy: Always
           ports:
@@ -51,3 +51,55 @@ spec:
             # - name: https
             #   containerPort: 443
             #   protocol: TCP
+
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: apseline-api
+  namespace: default
+  labels:
+    name: apseline-api
+spec:
+  type: LoadBalancer
+  allocateLoadBalancerNodePorts: false
+  ports:
+    - port: 80
+      targetPort: 3001
+      protocol: TCP
+      name: http
+  selector:
+    name: apseline-api
+
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: apseline-api
+  namespace: default
+  labels:
+    name: apseline-api
+    version: '0.1.0'
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: apseline-api
+  template:
+    metadata:
+      labels:
+        name: apseline-api
+    spec:
+      containers:
+        - name: apseline-api
+          image: ghcr.io/sentient-soup/apseline-api:master
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: apseline-config
+            - secretRef:
+                name: db-secrets
+          ports:
+            - name: http
+              containerPort: 3001
+              protocol: TCP
