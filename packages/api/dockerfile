@@ -5,7 +5,7 @@ FROM base AS builder
 RUN apk add --no-cache gcompat
 WORKDIR /app
 
-COPY package*json tsconfig.json knexfile* src ./
+COPY package*json tsconfig.json knexfile.ts src ./
 
 RUN npm install && \
   npm run build && \
