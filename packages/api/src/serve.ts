@@ -20,7 +20,9 @@ export type RouteContext = Context<HonoContext>;
 export function startServer(): void {
   try {
     const nodeEnv = process.env.NODE_ENV ?? 'development';
-    const port = process.env.PORT ? Number(process.env.PORT) : 3001;
+    const port = process.env.AL_API_PORT
+      ? Number(process.env.AL_API_PORT)
+      : 3001;
     const webUrl = process.env.AL_WEB_URL ?? 'http://localhost:3000';
     const hostname = new URL(process.env.AL_API_URL ?? 'http://localhost')
       .hostname;
