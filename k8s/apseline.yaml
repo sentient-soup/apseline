@@ -42,7 +42,7 @@ spec:
     spec:
       containers:
         - name: apseline
-          image: ghcr.io/sentient-soup/apseline:master
+          image: ghcr.io/sentient-soup/apseline-web:master
           imagePullPolicy: Always
           ports:
             - name: http
