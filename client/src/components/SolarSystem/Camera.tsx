@@ -1,5 +1,5 @@
 import { useReducedMotion } from 'framer-motion';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import type { View } from '../../stores/viewStore';
 import { findNode, STAR, VIEWBOX_W, VIEWBOX_H, PLANET_SCALE, SYSTEM_SCALE } from './layout';
 import {
@@ -27,6 +27,12 @@ function durationFor(prev: View, next: View): number {
   return 0;
 }
 
+function transformStringFor(cam: CameraTarget): string {
+  const tx = VIEWBOX_W / 2 - cam.x * cam.scale;
+  const ty = VIEWBOX_H / 2 - cam.y * cam.scale;
+  return `translate(${tx} ${ty}) scale(${cam.scale})`;
+}
+
 interface CameraProps {
   view: View;
   transitionId: number;
@@ -35,12 +41,17 @@ interface CameraProps {
 
 export function Camera({ view, transitionId, children }: CameraProps) {
   const reduced = !!useReducedMotion();
-  const [cam, setCam] = useState<CameraTarget>(() => computeCameraTarget(view));
-  const camRef = useRef(cam);
-  camRef.current = cam;
+  const groupRef = useRef<SVGGElement | null>(null);
+  const camRef = useRef<CameraTarget>(computeCameraTarget(view));
   const prevViewRef = useRef<View>(view);
-  const lastIdRef = useRef(-1);
+  const lastIdRef = useRef<number>(-1);
   const rafRef = useRef<number>(0);
+
+  const writeTransform = (cam: CameraTarget) => {
+    if (groupRef.current) {
+      groupRef.current.setAttribute('transform', transformStringFor(cam));
+    }
+  };
 
   useEffect(() => {
     // Idempotent under React 19 StrictMode double-invoke: only run a given transitionId once.
@@ -53,11 +64,16 @@ export function Camera({ view, transitionId, children }: CameraProps) {
     const to = computeCameraTarget(next);
     const from = camRef.current;
     const duration = reduced ? 0 : durationFor(prev, next);
-    const useApex = !reduced && prev.kind === 'planet' && next.kind === 'planet' && prev.nodeId !== next.nodeId;
+    const useApex =
+      !reduced && prev.kind === 'planet' && next.kind === 'planet' && prev.nodeId !== next.nodeId;
 
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
 
-    if (duration === 0) { setCam(to); return; }
+    if (duration === 0) {
+      camRef.current = to;
+      writeTransform(to);
+      return;
+    }
 
     const start = performance.now();
     const tick = (now: number) => {
@@ -71,15 +87,19 @@ export function Camera({ view, transitionId, children }: CameraProps) {
             ? lerp(from.scale, SYSTEM_SCALE, eased * 2)
             : lerp(SYSTEM_SCALE, to.scale, (eased - 0.5) * 2))
         : lerp(from.scale, to.scale, eased);
-      setCam({ x: pos.x, y: pos.y, scale });
-      if (raw < 1) rafRef.current = requestAnimationFrame(tick);
+      const cam = { x: pos.x, y: pos.y, scale };
+      camRef.current = cam;
+      writeTransform(cam);
+      if (raw < 1) {
+        rafRef.current = requestAnimationFrame(tick);
+      }
     };
     rafRef.current = requestAnimationFrame(tick);
   }, [transitionId, view, reduced]);
 
-  const tx = useMemo(() => VIEWBOX_W / 2 - cam.x * cam.scale, [cam.x, cam.scale]);
-  const ty = useMemo(() => VIEWBOX_H / 2 - cam.y * cam.scale, [cam.y, cam.scale]);
   return (
-    <g transform={`translate(${tx} ${ty}) scale(${cam.scale})`}>{children}</g>
+    <g ref={groupRef} transform={transformStringFor(camRef.current)}>
+      {children}
+    </g>
   );
 }
