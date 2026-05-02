@@ -1,0 +1,85 @@
+dashboard:
+  title: "Apseline Command Center"
+  refreshInterval: 30 # seconds
+
+integrations:
+  kubernetes:
+    enabled: false
+    autoDiscover: false
+    # kubeconfig: "/path/to/kubeconfig" # Optional, uses default if not set
+    # context: "my-cluster" # Optional
+
+  docker:
+    enabled: false
+    autoDiscover: false
+    socketPath: "/var/run/docker.sock"
+    # For remote Docker:
+    # host: "192.168.1.100"
+    # port: 2375
+
+  prometheus:
+    enabled: false
+    url: "http://prometheus.local:9090"
+
+  host:
+    enabled: false
+
+# Manual service definitions (Homelab)
+perihelion:
+  - name: "Rancher"
+    url: "https://rancher.local"
+    category: "Infrastructure"
+
+  - name: "Pi-hole"
+    url: "http://pihole.local/admin"
+    category: "Network"
+
+  - name: "Nextcloud"
+    url: "https://nextcloud.local"
+    category: "Productivity"
+
+  - name: "Jellyfin"
+    url: "http://jellyfin.local:8096"
+    category: "Media"
+
+  - name: "Immich"
+    url: "http://immich.local:2283"
+    category: "Photos"
+
+# Manual service definitions (Cloud)
+aphelion:
+  - name: "Portfolio"
+    url: "https://PLACEHOLDER.com"
+    category: "Personal"
+
+  - name: "Foundry VTT"
+    url: "https://PLACEHOLDER.com"
+    category: "Gaming"
+
+  - name: "Factorio"
+    url: "https://PLACEHOLDER.com"
+    category: "Gaming"
+
+  - name: "Copy Party"
+    url: "https://PLACEHOLDER.com"
+    category: "File Sharing"
+
+  - name: "Fiberwave"
+    url: "https://PLACEHOLDER.com"
+    category: "Archive"
+
+  - name: "Disregard That"
+    url: "https://PLACEHOLDER.com"
+    category: "Archive"
+
+  - name: "Disregard That Podcast"
+    url: "https://PLACEHOLDER.com"
+    category: "Archive"
+
+  - name: "Slaughter House"
+    url: "https://PLACEHOLDER.com"
+    category: "Archive"
+
+  - name: "Net Runner"
+    url: "https://PLACEHOLDER.com"
+    category: "Archive"

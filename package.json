@@ -1,0 +1,16 @@
+{
+  "name": "apseline",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"pnpm --filter @apseline/server dev\" \"pnpm --filter @apseline/client dev\"",
+    "dev:client": "pnpm --filter @apseline/client dev",
+    "dev:server": "pnpm --filter @apseline/server dev",
+    "build": "pnpm --filter @apseline/shared build && pnpm --filter @apseline/server build && pnpm --filter @apseline/client build",
+    "start": "pnpm --filter @apseline/server start"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "typescript": "^5.3.3"
+  }
+}

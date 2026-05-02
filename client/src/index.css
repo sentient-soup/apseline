@@ -1,0 +1,118 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom CSS Variables */
+:root {
+  --perihelion-glow: rgba(236, 72, 153, 0.3);
+  --aphelion-glow: rgba(139, 92, 246, 0.3);
+}
+
+/* Base Styles */
+body {
+  @apply bg-space-background text-white antialiased;
+  overflow-x: hidden;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-space-background;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-space-surface rounded-full;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-opacity-80;
+}
+
+/* Glow Effects - Subtle */
+.glow-perihelion {
+  box-shadow: 0 0 20px var(--perihelion-glow);
+}
+
+.glow-aphelion {
+  box-shadow: 0 0 20px var(--aphelion-glow);
+}
+
+.glow-perihelion-intense {
+  box-shadow: 0 0 30px var(--perihelion-glow);
+}
+
+.glow-aphelion-intense {
+  box-shadow: 0 0 30px var(--aphelion-glow);
+}
+
+/* Glassmorphism Effects - Subtle */
+.glass-perihelion {
+  background: rgba(236, 72, 153, 0.05);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(236, 72, 153, 0.15);
+}
+
+.glass-aphelion {
+  background: rgba(139, 92, 246, 0.05);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(139, 92, 246, 0.15);
+}
+
+/* Removed - no longer used */
+
+/* Pulse Animation */
+.pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+/* Shimmer Effect - Removed (too gaudy) */
+
+/* Text Glow */
+.text-glow-perihelion {
+  text-shadow:
+    0 0 10px var(--perihelion-glow),
+    0 0 20px var(--perihelion-glow);
+}
+
+.text-glow-aphelion {
+  text-shadow:
+    0 0 10px var(--aphelion-glow),
+    0 0 20px var(--aphelion-glow);
+}
+
+/* Gradient Text */
+.gradient-text-perihelion {
+  background: linear-gradient(135deg, #EC4899, #F472B6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gradient-text-aphelion {
+  background: linear-gradient(135deg, #8B5CF6, #A78BFA);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Removed - now using inline styles */
+
+/* Animated Border - Removed (too gaudy) */
+
+/* Removed with animated borders */
+
+/* Removed - no longer used */
