@@ -1,4 +1,3 @@
-import { useReducedMotion } from 'framer-motion';
 import { useEffect, useRef } from 'react';
 import type { View } from '../../stores/viewStore';
 import { findNode, STAR, VIEWBOX_W, VIEWBOX_H, PLANET_SCALE, SYSTEM_SCALE } from './layout';
@@ -40,7 +39,6 @@ interface CameraProps {
 }
 
 export function Camera({ view, transitionId, children }: CameraProps) {
-  const reduced = !!useReducedMotion();
   const groupRef = useRef<SVGGElement | null>(null);
   const camRef = useRef<CameraTarget>(computeCameraTarget(view));
   const prevViewRef = useRef<View>(view);
@@ -54,7 +52,6 @@ export function Camera({ view, transitionId, children }: CameraProps) {
   };
 
   useEffect(() => {
-    // Idempotent under React 19 StrictMode double-invoke: only run a given transitionId once.
     if (lastIdRef.current === transitionId) return;
     lastIdRef.current = transitionId;
 
@@ -63,9 +60,9 @@ export function Camera({ view, transitionId, children }: CameraProps) {
     prevViewRef.current = next;
     const to = computeCameraTarget(next);
     const from = camRef.current;
-    const duration = reduced ? 0 : durationFor(prev, next);
+    const duration = durationFor(prev, next);
     const useApex =
-      !reduced && prev.kind === 'planet' && next.kind === 'planet' && prev.nodeId !== next.nodeId;
+      prev.kind === 'planet' && next.kind === 'planet' && prev.nodeId !== next.nodeId;
 
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
 
@@ -95,7 +92,7 @@ export function Camera({ view, transitionId, children }: CameraProps) {
       }
     };
     rafRef.current = requestAnimationFrame(tick);
-  }, [transitionId, view, reduced]);
+  }, [transitionId, view]);
 
   return (
     <g ref={groupRef} transform={transformStringFor(camRef.current)}>
