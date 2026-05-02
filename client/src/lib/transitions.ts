@@ -26,8 +26,8 @@ export function redirectFromMidflight(current: Pt, apex: Pt, newEnd: Pt): Camera
   return { start: current, apex, end: newEnd };
 }
 
-export const SWOOP_DURATION_MS = 800;
-export const SWOOP_APEX_MS = 400;
-export const ZOOM_IN_DURATION_MS = 600;
-export const ZOOM_OUT_DURATION_MS = 500;
-export const SATELLITE_FADE_MS = 200;
+export const SWOOP_DURATION_MS = 1600;
+export const SWOOP_APEX_MS = 800;
+export const ZOOM_IN_DURATION_MS = 1200;
+export const ZOOM_OUT_DURATION_MS = 1000;
+export const SATELLITE_FADE_MS = 400;

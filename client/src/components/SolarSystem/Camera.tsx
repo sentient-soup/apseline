@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { View } from '../../stores/viewStore';
-import { findNode, STAR, VIEWBOX_W, VIEWBOX_H, PLANET_SCALE, SYSTEM_SCALE } from './layout';
+import { findNode, VIEWBOX_W, VIEWBOX_H, PLANET_SCALE, SYSTEM_SCALE } from './layout';
 import {
   quadBezier, easeInOutCubic, lerp,
   SWOOP_DURATION_MS, ZOOM_IN_DURATION_MS, ZOOM_OUT_DURATION_MS,
@@ -10,7 +10,19 @@ import type { Pt } from '../../lib/geometry';
 export interface CameraTarget { x: number; y: number; scale: number }
 
 const SYSTEM_CENTER: Pt = { x: VIEWBOX_W / 2, y: VIEWBOX_H / 2 };
-const APEX: Pt = { x: STAR.x, y: STAR.y - 200 };
+
+// Apex sits midway between start and end, lifted upward by an amount
+// proportional to the horizontal distance between them.  Short hops get
+// a low arc; long hops get a tall one.
+const APEX_LIFT_RATIO = 0.55;
+const APEX_LIFT_MIN = 80;
+function apexBetween(from: Pt, to: Pt): Pt {
+  const midX = (from.x + to.x) / 2;
+  const midY = (from.y + to.y) / 2;
+  const dist = Math.hypot(to.x - from.x, to.y - from.y);
+  const lift = Math.max(APEX_LIFT_MIN, dist * APEX_LIFT_RATIO);
+  return { x: midX, y: midY - lift };
+}
 
 export function computeCameraTarget(view: View): CameraTarget {
   if (view.kind === 'system') return { x: SYSTEM_CENTER.x, y: SYSTEM_CENTER.y, scale: SYSTEM_SCALE };
@@ -72,12 +84,13 @@ export function Camera({ view, transitionId, children }: CameraProps) {
       return;
     }
 
+    const apex = useApex ? apexBetween(from, to) : SYSTEM_CENTER;
     const start = performance.now();
     const tick = (now: number) => {
       const raw = Math.min(1, (now - start) / duration);
       const eased = easeInOutCubic(raw);
       const pos = useApex
-        ? quadBezier(eased, from, APEX, to)
+        ? quadBezier(eased, from, apex, to)
         : { x: lerp(from.x, to.x, eased), y: lerp(from.y, to.y, eased) };
       const scale = useApex
         ? (raw < 0.5
