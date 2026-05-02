@@ -6,11 +6,44 @@
 
 **Architecture:** SVG + CSS transforms primary, Canvas for ambient starfield (existing component, retuned), Framer Motion for camera animations, Zustand for state (one new store for view, one for theme). No WebGL. All accent hues at uniform lightness; six selectable themes via CSS custom properties.
 
-**Tech Stack:** React 19, TypeScript 5.3, Vite 5, Tailwind 3, Framer Motion 11, Zustand 5, Vitest (added in Task 1), @testing-library/react.
+**Tech Stack:** React 19, TypeScript 5.3, Vite 5, Tailwind 3, Framer Motion 11, Zustand 5.
+
+**Testing policy:** **No unit tests in this project.** Verification is manual: run `pnpm dev`, exercise the feature in a browser. Each task ends with a manual smoke step where applicable, then a commit.
 
 **Source spec:** [`docs/superpowers/specs/2026-05-01-orbital-redesign-design.md`](../specs/2026-05-01-orbital-redesign-design.md)
 
-**Repo note:** the project is not currently a git repo. Tasks include `git commit` steps; if `git init` has not been run, the implementor should either run it before starting or treat commit steps as advisory checkpoints.
+**Repo note:** Working on branch `feat/orbital-redesign`. Initial snapshot already committed on `main`.
+
+---
+
+## Pre-task: scrub legacy vitest scaffolding
+
+Earlier exploration left some Vitest files in the client. They must be removed before implementation begins.
+
+- [ ] **Step 1: Delete vitest files**
+
+```bash
+rm client/vitest.config.ts client/vitest.setup.ts
+```
+
+- [ ] **Step 2: Remove vitest deps from `client/package.json`**
+
+Remove these from `devDependencies` if present: `vitest`, `@vitest/ui`, `jsdom`, `@testing-library/react`, `@testing-library/jest-dom`, `@testing-library/user-event`. Remove `test` and `test:watch` from `scripts` if present.
+
+```bash
+pnpm --filter @apseline/client remove vitest @vitest/ui jsdom @testing-library/react @testing-library/jest-dom @testing-library/user-event 2>/dev/null || true
+```
+
+- [ ] **Step 3: Remove vitest types from `client/tsconfig.json`**
+
+If `compilerOptions.types` references `"vitest/globals"` or `"@testing-library/jest-dom"`, remove those entries.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add -A
+git commit -m "chore: remove vitest scaffolding (no unit tests in this project)"
+```
 
 ---
 
@@ -18,9 +51,8 @@
 
 ```
 client/
-  package.json                           MODIFY  add vitest + testing-library deps
-  vitest.config.ts                       CREATE  vitest config
-  tsconfig.json                          MODIFY  include vitest types
+  package.json                           (already modified by pre-task)
+  tsconfig.json                          (already modified by pre-task)
   tailwind.config.js                     MODIFY  add CSS-var-driven theme palette
   src/
     main.tsx                             MODIFY  apply initial theme on boot
@@ -29,17 +61,12 @@ client/
 
     lib/
       geometry.ts                        CREATE  ellipse focus math, satellite placement
-      geometry.test.ts                   CREATE
       transitions.ts                     CREATE  Bézier camera paths, scale interp, redirect
-      transitions.test.ts                CREATE
       palette.ts                         CREATE  theme token tables + applyTheme()
-      palette.test.ts                    CREATE
 
     stores/
       viewStore.ts                       CREATE  { kind, nodeId?, serviceId? } + navigate()
-      viewStore.test.ts                  CREATE
       themeStore.ts                      CREATE  themeId + persistence
-      themeStore.test.ts                 CREATE
       servicesStore.ts                   UNCHANGED
 
     components/
@@ -49,6 +76,7 @@ client/
       ServiceGrid.tsx                    DELETE
       SolarSystem/
         index.tsx                        CREATE  outer SVG, scene composition
+        layout.ts                        CREATE  layout constants + node positions
         Camera.tsx                       CREATE  motion.g wrapper, drives camera transform
         Star.tsx                         CREATE  empty placeholder at left focus
         Orbit.tsx                        CREATE  one ellipse stroke
@@ -67,145 +95,18 @@ client/
           SatelliteHighlight.tsx         CREATE  highlight ring on selected satellite
         Settings/
           ThemePicker.tsx                CREATE  swatches for 6 themes
-
-  vitest.setup.ts                        CREATE  jsdom + matchers
-
-docs/
-  superpowers/
-    specs/2026-05-01-orbital-redesign-design.md   (already exists — source of truth)
-    plans/2026-05-01-orbital-redesign.md          (this file)
+          SettingsPanel.tsx              CREATE  overlay panel hosting ThemePicker
 ```
 
 ---
 
-## Task 1: Set up Vitest and Testing Library
-
-**Files:**
-- Modify: `client/package.json`
-- Create: `client/vitest.config.ts`
-- Create: `client/vitest.setup.ts`
-- Modify: `client/tsconfig.json`
-
-- [ ] **Step 1: Install dev deps**
-
-Run from repo root:
-```bash
-pnpm --filter @apseline/client add -D vitest @vitest/ui jsdom @testing-library/react @testing-library/jest-dom @testing-library/user-event
-```
-
-- [ ] **Step 2: Add test script to client/package.json**
-
-In `client/package.json`, add to `scripts`:
-```json
-"test": "vitest run",
-"test:watch": "vitest"
-```
-
-- [ ] **Step 3: Create vitest config**
-
-Create `client/vitest.config.ts`:
-```ts
-import { defineConfig } from 'vitest/config';
-import react from '@vitejs/plugin-react';
-
-export default defineConfig({
-  plugins: [react()],
-  test: {
-    environment: 'jsdom',
-    setupFiles: ['./vitest.setup.ts'],
-    globals: true,
-    css: true,
-  },
-});
-```
-
-- [ ] **Step 4: Create vitest setup**
-
-Create `client/vitest.setup.ts`:
-```ts
-import '@testing-library/jest-dom/vitest';
-```
-
-- [ ] **Step 5: Update tsconfig**
-
-In `client/tsconfig.json`, ensure `compilerOptions.types` includes `"vitest/globals"` and `"@testing-library/jest-dom"`. If `types` is missing, add:
-```json
-"types": ["vite/client", "vitest/globals", "@testing-library/jest-dom"]
-```
-
-- [ ] **Step 6: Verify**
-
-Run from `client/`:
-```bash
-pnpm test
-```
-Expected: `No test files found` exit 0 (or exit 1 with that message — either is fine for now).
-
-- [ ] **Step 7: Commit**
-
-```bash
-git add client/package.json client/vitest.config.ts client/vitest.setup.ts client/tsconfig.json pnpm-lock.yaml
-git commit -m "chore: add vitest + testing-library"
-```
-
----
-
-## Task 2: Geometry library — ellipse focus math
+## Task 1: Geometry library
 
 **Files:**
 - Create: `client/src/lib/geometry.ts`
-- Create: `client/src/lib/geometry.test.ts`
 
-- [ ] **Step 1: Write failing test for ellipse center calc**
+- [ ] **Step 1: Implement geometry.ts**
 
-Create `client/src/lib/geometry.test.ts`:
-```ts
-import { describe, it, expect } from 'vitest';
-import { ellipseCenterFromLeftFocus, vertexAt, satelliteSlotsForTier } from './geometry';
-
-describe('ellipseCenterFromLeftFocus', () => {
-  it('returns center to the right of the focus by a*e', () => {
-    const focus = { x: 300, y: 240 };
-    const center = ellipseCenterFromLeftFocus(focus, 140, 0.45);
-    expect(center).toEqual({ x: 300 + 140 * 0.45, y: 240 });
-  });
-});
-
-describe('vertexAt', () => {
-  it('returns left vertex (perihelion of orbit)', () => {
-    const focus = { x: 300, y: 240 };
-    const v = vertexAt(focus, 140, 0.45, 'perihelion');
-    expect(v).toEqual({ x: 300 + 140 * 0.45 - 140, y: 240 });
-  });
-  it('returns right vertex (aphelion of orbit)', () => {
-    const focus = { x: 300, y: 240 };
-    const v = vertexAt(focus, 240, 0.5, 'aphelion');
-    expect(v).toEqual({ x: 300 + 240 * 0.5 + 240, y: 240 });
-  });
-});
-
-describe('satelliteSlotsForTier', () => {
-  it('places N satellites on a circle of given radius', () => {
-    const slots = satelliteSlotsForTier(4, 100);
-    expect(slots).toHaveLength(4);
-    expect(slots[0]).toEqual({ x: 100, y: 0 });
-    expect(slots[1].x).toBeCloseTo(0, 5);
-    expect(slots[1].y).toBeCloseTo(100, 5);
-  });
-});
-```
-
-- [ ] **Step 2: Run, expect fail**
-
-Run from `client/`:
-```bash
-pnpm test geometry
-```
-Expected: FAIL — module not found.
-
-- [ ] **Step 3: Implement geometry.ts**
-
-Create `client/src/lib/geometry.ts`:
 ```ts
 export interface Pt { x: number; y: number }
 export type Vertex = 'perihelion' | 'aphelion';
@@ -229,88 +130,22 @@ export function satelliteSlotsForTier(count: number, radius: number, phase = 0):
 }
 ```
 
-- [ ] **Step 4: Run, expect pass**
+- [ ] **Step 2: Commit**
 
 ```bash
-pnpm test geometry
-```
-Expected: PASS (3 tests).
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add client/src/lib/geometry.ts client/src/lib/geometry.test.ts
+git add client/src/lib/geometry.ts
 git commit -m "feat(geometry): ellipse focus math + satellite slot helper"
 ```
 
 ---
 
-## Task 3: Transitions library — Bézier camera paths
+## Task 2: Transitions library
 
 **Files:**
 - Create: `client/src/lib/transitions.ts`
-- Create: `client/src/lib/transitions.test.ts`
 
-- [ ] **Step 1: Write failing tests**
+- [ ] **Step 1: Implement transitions.ts**
 
-Create `client/src/lib/transitions.test.ts`:
-```ts
-import { describe, it, expect } from 'vitest';
-import { quadBezier, lerp, easeInOutCubic, redirectFromMidflight } from './transitions';
-
-describe('quadBezier', () => {
-  it('returns start at t=0', () => {
-    expect(quadBezier(0, { x: 0, y: 0 }, { x: 50, y: 100 }, { x: 100, y: 0 })).toEqual({ x: 0, y: 0 });
-  });
-  it('returns end at t=1', () => {
-    expect(quadBezier(1, { x: 0, y: 0 }, { x: 50, y: 100 }, { x: 100, y: 0 })).toEqual({ x: 100, y: 0 });
-  });
-  it('passes near (but not through) apex at t=0.5', () => {
-    const p = quadBezier(0.5, { x: 0, y: 0 }, { x: 50, y: 100 }, { x: 100, y: 0 });
-    expect(p.x).toBe(50);
-    expect(p.y).toBe(50); // 0.25*0 + 0.5*100 + 0.25*0
-  });
-});
-
-describe('lerp', () => {
-  it('interpolates linearly', () => {
-    expect(lerp(0, 10, 0.5)).toBe(5);
-  });
-});
-
-describe('easeInOutCubic', () => {
-  it('returns 0 at t=0 and 1 at t=1', () => {
-    expect(easeInOutCubic(0)).toBe(0);
-    expect(easeInOutCubic(1)).toBe(1);
-  });
-  it('crosses 0.5 at t=0.5', () => {
-    expect(easeInOutCubic(0.5)).toBeCloseTo(0.5, 5);
-  });
-});
-
-describe('redirectFromMidflight', () => {
-  it('builds a new bezier whose start equals current camera', () => {
-    const current = { x: 30, y: 40 };
-    const apex = { x: 100, y: -50 };
-    const newEnd = { x: 200, y: 60 };
-    const path = redirectFromMidflight(current, apex, newEnd);
-    expect(path.start).toEqual(current);
-    expect(path.apex).toEqual(apex);
-    expect(path.end).toEqual(newEnd);
-  });
-});
-```
-
-- [ ] **Step 2: Run, expect fail**
-
-```bash
-pnpm test transitions
-```
-Expected: FAIL — module not found.
-
-- [ ] **Step 3: Implement transitions.ts**
-
-Create `client/src/lib/transitions.ts`:
 ```ts
 import type { Pt } from './geometry';
 
@@ -340,86 +175,31 @@ export function redirectFromMidflight(current: Pt, apex: Pt, newEnd: Pt): Camera
   return { start: current, apex, end: newEnd };
 }
 
-// Phase boundaries used by SolarSystem to schedule chrome cross-fades
-// and satellite fade-ins. Times are in ms.
 export const SWOOP_DURATION_MS = 800;
 export const SWOOP_APEX_MS = 400;
 export const ZOOM_IN_DURATION_MS = 600;
 export const ZOOM_OUT_DURATION_MS = 500;
-export const SATELLITE_FADE_MS = 200; // counted backward from transition end
+export const SATELLITE_FADE_MS = 200;
 ```
 
-- [ ] **Step 4: Run, expect pass**
+- [ ] **Step 2: Commit**
 
 ```bash
-pnpm test transitions
-```
-Expected: PASS (6 tests).
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add client/src/lib/transitions.ts client/src/lib/transitions.test.ts
+git add client/src/lib/transitions.ts
 git commit -m "feat(transitions): bezier camera path + easing"
 ```
 
 ---
 
-## Task 4: Palette library — theme tokens & applyTheme
+## Task 3: Palette library + CSS vars
 
 **Files:**
 - Create: `client/src/lib/palette.ts`
-- Create: `client/src/lib/palette.test.ts`
+- Modify: `client/tailwind.config.js`
+- Modify: `client/src/index.css`
 
-- [ ] **Step 1: Write failing tests**
+- [ ] **Step 1: Implement palette.ts**
 
-Create `client/src/lib/palette.test.ts`:
-```ts
-import { describe, it, expect, beforeEach } from 'vitest';
-import { THEMES, applyTheme, type ThemeId } from './palette';
-
-describe('THEMES', () => {
-  it('has 6 themes with consistent token shapes', () => {
-    const ids: ThemeId[] = ['nebula-warm','nightfall','nebula-ink','dusty-plum','blueprint','void'];
-    ids.forEach(id => {
-      const t = THEMES[id];
-      expect(t.bg).toMatch(/^#/);
-      ['perihelion','aphelion','cloudflare','gce','warn','alerts'].forEach(k => {
-        expect(t[k as keyof typeof t]).toMatch(/^#/);
-      });
-    });
-  });
-});
-
-describe('applyTheme', () => {
-  beforeEach(() => {
-    document.documentElement.style.cssText = '';
-  });
-  it('writes CSS variables to :root', () => {
-    applyTheme('nebula-warm');
-    const root = document.documentElement;
-    expect(root.style.getPropertyValue('--color-bg')).toBe('#13121A');
-    expect(root.style.getPropertyValue('--color-perihelion')).toBe('#DA79B0');
-    expect(root.style.getPropertyValue('--color-aphelion')).toBe('#A091D6');
-  });
-  it('switches values when theme changes', () => {
-    applyTheme('nebula-warm');
-    applyTheme('void');
-    expect(document.documentElement.style.getPropertyValue('--color-bg')).toBe('#0A0A14');
-  });
-});
-```
-
-- [ ] **Step 2: Run, expect fail**
-
-```bash
-pnpm test palette
-```
-Expected: FAIL.
-
-- [ ] **Step 3: Implement palette.ts**
-
-Create `client/src/lib/palette.ts`:
 ```ts
 export type ThemeId = 'nebula-warm' | 'nightfall' | 'nebula-ink' | 'dusty-plum' | 'blueprint' | 'void';
 
@@ -455,18 +235,11 @@ export function applyTheme(id: ThemeId): void {
 }
 ```
 
-- [ ] **Step 4: Run, expect pass**
+- [ ] **Step 2: Wire CSS vars into Tailwind**
 
-```bash
-pnpm test palette
-```
-Expected: PASS.
+In `client/tailwind.config.js`, inside `theme.extend.colors`, add (alongside existing entries):
 
-- [ ] **Step 5: Wire CSS vars into Tailwind**
-
-Modify `client/tailwind.config.js` `theme.extend.colors` to include:
 ```js
-// Inside theme.extend.colors, in addition to existing entries:
 themed: {
   bg:         'var(--color-bg)',
   perihelion: 'var(--color-perihelion)',
@@ -478,7 +251,10 @@ themed: {
 },
 ```
 
-Modify `client/src/index.css` — add at the top:
+- [ ] **Step 3: Update index.css**
+
+Add to the top of `client/src/index.css`:
+
 ```css
 :root {
   --color-bg: #13121A;
@@ -492,61 +268,22 @@ Modify `client/src/index.css` — add at the top:
 body { background: var(--color-bg); }
 ```
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
-git add client/src/lib/palette.ts client/src/lib/palette.test.ts client/tailwind.config.js client/src/index.css
+git add client/src/lib/palette.ts client/tailwind.config.js client/src/index.css
 git commit -m "feat(palette): theme tokens + CSS vars + applyTheme"
 ```
 
 ---
 
-## Task 5: Theme store (Zustand) with localStorage persistence
+## Task 4: Theme store (Zustand)
 
 **Files:**
 - Create: `client/src/stores/themeStore.ts`
-- Create: `client/src/stores/themeStore.test.ts`
 
-- [ ] **Step 1: Write failing tests**
+- [ ] **Step 1: Implement themeStore.ts**
 
-Create `client/src/stores/themeStore.test.ts`:
-```ts
-import { describe, it, expect, beforeEach } from 'vitest';
-import { useThemeStore } from './themeStore';
-
-describe('themeStore', () => {
-  beforeEach(() => {
-    localStorage.clear();
-    useThemeStore.setState({ themeId: 'nebula-warm' });
-  });
-
-  it('defaults to nebula-warm', () => {
-    expect(useThemeStore.getState().themeId).toBe('nebula-warm');
-  });
-
-  it('setTheme changes themeId and writes localStorage', () => {
-    useThemeStore.getState().setTheme('void');
-    expect(useThemeStore.getState().themeId).toBe('void');
-    expect(localStorage.getItem('apseline.theme')).toBe('void');
-  });
-
-  it('initFromStorage restores persisted theme', () => {
-    localStorage.setItem('apseline.theme', 'dusty-plum');
-    useThemeStore.getState().initFromStorage();
-    expect(useThemeStore.getState().themeId).toBe('dusty-plum');
-  });
-});
-```
-
-- [ ] **Step 2: Run, expect fail**
-
-```bash
-pnpm test themeStore
-```
-
-- [ ] **Step 3: Implement themeStore.ts**
-
-Create `client/src/stores/themeStore.ts`:
 ```ts
 import { create } from 'zustand';
 import { applyTheme, THEMES, type ThemeId } from '../lib/palette';
@@ -579,78 +316,22 @@ export const useThemeStore = create<ThemeStore>((set) => ({
 }));
 ```
 
-- [ ] **Step 4: Run, expect pass**
+- [ ] **Step 2: Commit**
 
 ```bash
-pnpm test themeStore
-```
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add client/src/stores/themeStore.ts client/src/stores/themeStore.test.ts
+git add client/src/stores/themeStore.ts
 git commit -m "feat(theme): zustand store with localStorage persistence"
 ```
 
 ---
 
-## Task 6: View store
+## Task 5: View store
 
 **Files:**
 - Create: `client/src/stores/viewStore.ts`
-- Create: `client/src/stores/viewStore.test.ts`
 
-- [ ] **Step 1: Write failing tests**
+- [ ] **Step 1: Implement viewStore.ts**
 
-Create `client/src/stores/viewStore.test.ts`:
-```ts
-import { describe, it, expect, beforeEach } from 'vitest';
-import { useViewStore } from './viewStore';
-
-describe('viewStore', () => {
-  beforeEach(() => {
-    useViewStore.setState({ view: { kind: 'system' }, transitionId: 0 });
-  });
-
-  it('starts at system view', () => {
-    expect(useViewStore.getState().view).toEqual({ kind: 'system' });
-  });
-
-  it('navigate to planet sets nodeId and increments transitionId', () => {
-    const before = useViewStore.getState().transitionId;
-    useViewStore.getState().navigate({ kind: 'planet', nodeId: 'perihelion' });
-    expect(useViewStore.getState().view).toEqual({ kind: 'planet', nodeId: 'perihelion' });
-    expect(useViewStore.getState().transitionId).toBe(before + 1);
-  });
-
-  it('openService overlays a service modal on the current planet view', () => {
-    useViewStore.getState().navigate({ kind: 'planet', nodeId: 'perihelion' });
-    useViewStore.getState().openService('jellyfin');
-    expect(useViewStore.getState().view).toEqual({ kind: 'service', nodeId: 'perihelion', serviceId: 'jellyfin' });
-  });
-
-  it('closeService returns to planet view', () => {
-    useViewStore.setState({ view: { kind: 'service', nodeId: 'perihelion', serviceId: 'jellyfin' }, transitionId: 0 });
-    useViewStore.getState().closeService();
-    expect(useViewStore.getState().view).toEqual({ kind: 'planet', nodeId: 'perihelion' });
-  });
-
-  it('openService is a no-op when not on a planet view', () => {
-    useViewStore.getState().openService('jellyfin');
-    expect(useViewStore.getState().view).toEqual({ kind: 'system' });
-  });
-});
-```
-
-- [ ] **Step 2: Run, expect fail**
-
-```bash
-pnpm test viewStore
-```
-
-- [ ] **Step 3: Implement viewStore.ts**
-
-Create `client/src/stores/viewStore.ts`:
 ```ts
 import { create } from 'zustand';
 
@@ -685,29 +366,22 @@ export const useViewStore = create<ViewStore>((set, get) => ({
 }));
 ```
 
-- [ ] **Step 4: Run, expect pass**
+- [ ] **Step 2: Commit**
 
 ```bash
-pnpm test viewStore
-```
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add client/src/stores/viewStore.ts client/src/stores/viewStore.test.ts
+git add client/src/stores/viewStore.ts
 git commit -m "feat(view): zustand view store with planet/service overlay"
 ```
 
 ---
 
-## Task 7: Layout constants module
+## Task 6: Layout constants
 
 **Files:**
 - Create: `client/src/components/SolarSystem/layout.ts`
 
-- [ ] **Step 1: Create layout.ts**
+- [ ] **Step 1: Implement layout.ts**
 
-Create `client/src/components/SolarSystem/layout.ts`:
 ```ts
 import type { Pt } from '../../lib/geometry';
 import { vertexAt, ellipseCenterFromLeftFocus } from '../../lib/geometry';
@@ -728,8 +402,16 @@ export interface NodeDescriptor {
   id: string;
   label: string;
   kind: 'primary' | 'outer';
-  colorVar: string;        // CSS var name without the `--` prefix
-  position: Pt;            // computed at module load from ORBITS
+  colorVar: string;
+  position: Pt;
+}
+
+const RY_RATIO = 0.347; // ry/rx for visible "tilted plane" — keeps points on the visible ring
+
+function pointOnOrbit(a: number, e: number, angleDeg: number): Pt {
+  const c = ellipseCenterFromLeftFocus(STAR, a, e);
+  const t = (angleDeg * Math.PI) / 180;
+  return { x: c.x + a * Math.cos(t), y: c.y + a * RY_RATIO * Math.sin(t) };
 }
 
 export const NODES: NodeDescriptor[] = [
@@ -752,24 +434,14 @@ export const NODES: NodeDescriptor[] = [
     label: 'CLOUDFLARE',
     kind: 'outer',
     colorVar: 'color-cloudflare',
-    // Sit on the outer orbit at angle ~155° (left side, slightly below midline)
-    position: (() => {
-      const c = ellipseCenterFromLeftFocus(STAR, ORBITS.outer.a, ORBITS.outer.e);
-      const t = (155 * Math.PI) / 180;
-      return { x: c.x + ORBITS.outer.a * Math.cos(t), y: c.y + ORBITS.outer.a * 0.347 * Math.sin(t) };
-      // ry/rx ≈ 125/360 ≈ 0.347 — keeps points on the visible ring
-    })(),
+    position: pointOnOrbit(ORBITS.outer.a, ORBITS.outer.e, 155),
   },
   {
     id: 'gce',
     label: 'GCE',
     kind: 'outer',
     colorVar: 'color-gce',
-    position: (() => {
-      const c = ellipseCenterFromLeftFocus(STAR, ORBITS.outer.a, ORBITS.outer.e);
-      const t = (35 * Math.PI) / 180;
-      return { x: c.x + ORBITS.outer.a * Math.cos(t), y: c.y + ORBITS.outer.a * 0.347 * Math.sin(t) };
-    })(),
+    position: pointOnOrbit(ORBITS.outer.a, ORBITS.outer.e, 35),
   },
 ];
 
@@ -777,78 +449,26 @@ export function findNode(id: string): NodeDescriptor | undefined {
   return NODES.find((n) => n.id === id);
 }
 
-// Camera-target scales by view kind
 export const SYSTEM_SCALE = 1;
 export const PLANET_SCALE = 2.5;
 ```
 
-- [ ] **Step 2: Quick smoke test**
-
-Add to `client/src/lib/geometry.test.ts` at the bottom:
-```ts
-import { NODES, STAR, findNode } from '../components/SolarSystem/layout';
-describe('layout', () => {
-  it('places perihelion to the left of the star', () => {
-    const p = findNode('perihelion')!;
-    expect(p.position.x).toBeLessThan(STAR.x);
-  });
-  it('places aphelion to the right of the star', () => {
-    const a = findNode('aphelion')!;
-    expect(a.position.x).toBeGreaterThan(STAR.x);
-  });
-});
-```
-
-Run: `pnpm test geometry` — expect PASS.
-
-- [ ] **Step 3: Commit**
+- [ ] **Step 2: Commit**
 
 ```bash
-git add client/src/components/SolarSystem/layout.ts client/src/lib/geometry.test.ts
+git add client/src/components/SolarSystem/layout.ts
 git commit -m "feat(solar-system): layout constants + node positions"
 ```
 
 ---
 
-## Task 8: Star component
+## Task 7: Star component
 
 **Files:**
 - Create: `client/src/components/SolarSystem/Star.tsx`
-- Create: `client/src/components/SolarSystem/Star.test.tsx`
 
-- [ ] **Step 1: Failing test**
+- [ ] **Step 1: Implement**
 
-Create `client/src/components/SolarSystem/Star.test.tsx`:
-```tsx
-import { render } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
-import { Star } from './Star';
-import { STAR } from './layout';
-
-describe('Star', () => {
-  it('renders two faint circles centered at the star focus', () => {
-    const { container } = render(
-      <svg viewBox="0 0 800 480"><Star /></svg>
-    );
-    const circles = container.querySelectorAll('circle');
-    expect(circles.length).toBeGreaterThanOrEqual(2);
-    circles.forEach(c => {
-      expect(c.getAttribute('cx')).toBe(String(STAR.x));
-      expect(c.getAttribute('cy')).toBe(String(STAR.y));
-    });
-  });
-});
-```
-
-- [ ] **Step 2: Run, expect fail**
-
-```bash
-pnpm test Star
-```
-
-- [ ] **Step 3: Implement Star.tsx**
-
-Create `client/src/components/SolarSystem/Star.tsx`:
 ```tsx
 import { STAR } from './layout';
 
@@ -862,53 +482,22 @@ export function Star() {
 }
 ```
 
-- [ ] **Step 4: Pass + commit**
+- [ ] **Step 2: Commit**
 
 ```bash
-pnpm test Star
-git add client/src/components/SolarSystem/Star.tsx client/src/components/SolarSystem/Star.test.tsx
+git add client/src/components/SolarSystem/Star.tsx
 git commit -m "feat(solar-system): Star placeholder component"
 ```
 
 ---
 
-## Task 9: Orbit component
+## Task 8: Orbit component
 
 **Files:**
 - Create: `client/src/components/SolarSystem/Orbit.tsx`
-- Create: `client/src/components/SolarSystem/Orbit.test.tsx`
 
-- [ ] **Step 1: Failing test**
+- [ ] **Step 1: Implement**
 
-Create `client/src/components/SolarSystem/Orbit.test.tsx`:
-```tsx
-import { render } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
-import { Orbit } from './Orbit';
-import { STAR, ORBITS } from './layout';
-import { ellipseCenterFromLeftFocus } from '../../lib/geometry';
-
-describe('Orbit', () => {
-  it('renders an ellipse with center to the right of the star focus', () => {
-    const { container } = render(<svg><Orbit which="inner" /></svg>);
-    const ellipse = container.querySelector('ellipse')!;
-    const expected = ellipseCenterFromLeftFocus(STAR, ORBITS.inner.a, ORBITS.inner.e);
-    expect(Number(ellipse.getAttribute('cx'))).toBeCloseTo(expected.x);
-    expect(Number(ellipse.getAttribute('cy'))).toBeCloseTo(expected.y);
-    expect(Number(ellipse.getAttribute('rx'))).toBe(ORBITS.inner.a);
-  });
-});
-```
-
-- [ ] **Step 2: Run, expect fail**
-
-```bash
-pnpm test Orbit
-```
-
-- [ ] **Step 3: Implement Orbit.tsx**
-
-Create `client/src/components/SolarSystem/Orbit.tsx`:
 ```tsx
 import { STAR, ORBITS, type OrbitKey } from './layout';
 import { ellipseCenterFromLeftFocus } from '../../lib/geometry';
@@ -930,60 +519,22 @@ export function Orbit({ which }: { which: OrbitKey }) {
 }
 ```
 
-- [ ] **Step 4: Pass + commit**
+- [ ] **Step 2: Commit**
 
 ```bash
-pnpm test Orbit
-git add client/src/components/SolarSystem/Orbit.tsx client/src/components/SolarSystem/Orbit.test.tsx
+git add client/src/components/SolarSystem/Orbit.tsx
 git commit -m "feat(solar-system): Orbit ellipse component"
 ```
 
 ---
 
-## Task 10: Primary Planet wireframe component
+## Task 9: Primary Planet wireframe
 
 **Files:**
 - Create: `client/src/components/SolarSystem/Planet/index.tsx`
-- Create: `client/src/components/SolarSystem/Planet/Planet.test.tsx`
 
-- [ ] **Step 1: Failing test**
+- [ ] **Step 1: Implement**
 
-Create `client/src/components/SolarSystem/Planet/Planet.test.tsx`:
-```tsx
-import { render, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
-import { Planet } from './index';
-
-describe('Planet', () => {
-  it('renders at the given position with the color var', () => {
-    const { container } = render(
-      <svg><Planet x={223} y={240} colorVar="color-perihelion" /></svg>
-    );
-    const g = container.querySelector('g[data-planet]')!;
-    expect(g.getAttribute('transform')).toBe('translate(223 240)');
-    const c = container.querySelector('circle[data-outline]');
-    expect(c?.getAttribute('stroke')).toBe('var(--color-perihelion)');
-  });
-  it('calls onClick when clicked', () => {
-    const onClick = vi.fn();
-    const { container } = render(
-      <svg><Planet x={0} y={0} colorVar="color-perihelion" onClick={onClick} /></svg>
-    );
-    fireEvent.click(container.querySelector('g[data-planet]')!);
-    expect(onClick).toHaveBeenCalled();
-  });
-});
-```
-
-- [ ] **Step 2: Run, expect fail**
-
-```bash
-pnpm test Planet
-```
-
-- [ ] **Step 3: Implement Planet/index.tsx**
-
-Create `client/src/components/SolarSystem/Planet/index.tsx`:
 ```tsx
 interface PlanetProps {
   x: number;
@@ -1015,50 +566,22 @@ export function Planet({ x, y, colorVar, radius = 16, onClick, hintSatellites = 
 }
 ```
 
-- [ ] **Step 4: Pass + commit**
+- [ ] **Step 2: Commit**
 
 ```bash
-pnpm test Planet
-git add client/src/components/SolarSystem/Planet/index.tsx client/src/components/SolarSystem/Planet/Planet.test.tsx
+git add client/src/components/SolarSystem/Planet/index.tsx
 git commit -m "feat(solar-system): primary Planet wireframe"
 ```
 
 ---
 
-## Task 11: OuterPlanet component
+## Task 10: OuterPlanet component
 
 **Files:**
 - Create: `client/src/components/SolarSystem/Planet/OuterPlanet.tsx`
-- Create: `client/src/components/SolarSystem/Planet/OuterPlanet.test.tsx`
 
-- [ ] **Step 1: Failing test**
+- [ ] **Step 1: Implement**
 
-Create `client/src/components/SolarSystem/Planet/OuterPlanet.test.tsx`:
-```tsx
-import { render } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
-import { OuterPlanet } from './OuterPlanet';
-
-describe('OuterPlanet', () => {
-  it('renders translated and uses the color var', () => {
-    const { container } = render(
-      <svg><OuterPlanet x={110} y={280} colorVar="color-cloudflare" label="CLOUDFLARE" /></svg>
-    );
-    expect(container.querySelector('g[data-outer-planet]')!.getAttribute('transform')).toBe('translate(110 280)');
-    expect(container.textContent).toContain('CLOUDFLARE');
-  });
-});
-```
-
-- [ ] **Step 2: Run, expect fail**
-
-```bash
-pnpm test OuterPlanet
-```
-
-- [ ] **Step 3: Implement OuterPlanet.tsx**
-
-Create `client/src/components/SolarSystem/Planet/OuterPlanet.tsx`:
 ```tsx
 interface OuterPlanetProps {
   x: number;
@@ -1085,68 +608,22 @@ export function OuterPlanet({ x, y, colorVar, label, onClick }: OuterPlanetProps
 }
 ```
 
-- [ ] **Step 4: Pass + commit**
+- [ ] **Step 2: Commit**
 
 ```bash
-pnpm test OuterPlanet
-git add client/src/components/SolarSystem/Planet/OuterPlanet.tsx client/src/components/SolarSystem/Planet/OuterPlanet.test.tsx
+git add client/src/components/SolarSystem/Planet/OuterPlanet.tsx
 git commit -m "feat(solar-system): OuterPlanet small variant"
 ```
 
 ---
 
-## Task 12: Satellites component (per-planet service nodes)
+## Task 11: Satellites component
 
 **Files:**
 - Create: `client/src/components/SolarSystem/Planet/Satellites.tsx`
-- Create: `client/src/components/SolarSystem/Planet/Satellites.test.tsx`
 
-- [ ] **Step 1: Failing test**
+- [ ] **Step 1: Implement**
 
-Create `client/src/components/SolarSystem/Planet/Satellites.test.tsx`:
-```tsx
-import { render, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
-import { Satellites, distributeSatellites } from './Satellites';
-import type { Service } from '@apseline/shared';
-
-const svc = (name: string): Service => ({ name, url: `https://${name}.local`, infrastructure: 'perihelion' });
-
-describe('distributeSatellites', () => {
-  it('places services across three tiers stably', () => {
-    const services = [svc('a'), svc('b'), svc('c'), svc('d'), svc('e'), svc('f'), svc('g'), svc('h'), svc('i')];
-    const slots1 = distributeSatellites(services);
-    const slots2 = distributeSatellites([...services]);
-    expect(slots1).toEqual(slots2);
-    const tiers = new Set(slots1.map(s => s.tier));
-    expect(tiers.size).toBeGreaterThan(1);
-  });
-});
-
-describe('Satellites', () => {
-  it('renders one circle per service and fires onSelect on click', () => {
-    const onSelect = vi.fn();
-    const services = [svc('jellyfin'), svc('grafana')];
-    const { container } = render(
-      <svg><Satellites services={services} colorVar="color-perihelion" opacity={1} onSelect={onSelect} /></svg>
-    );
-    const dots = container.querySelectorAll('circle[data-satellite]');
-    expect(dots.length).toBe(2);
-    fireEvent.click(dots[0]);
-    expect(onSelect).toHaveBeenCalledWith('jellyfin');
-  });
-});
-```
-
-- [ ] **Step 2: Run, expect fail**
-
-```bash
-pnpm test Satellites
-```
-
-- [ ] **Step 3: Implement Satellites.tsx**
-
-Create `client/src/components/SolarSystem/Planet/Satellites.tsx`:
 ```tsx
 import type { Service } from '@apseline/shared';
 import { satelliteSlotsForTier } from '../../../lib/geometry';
@@ -1171,7 +648,6 @@ function hashName(name: string): number {
 
 export function distributeSatellites(services: Service[]): SatelliteSlot[] {
   const buckets: Service[][] = Array.from({ length: TIER_COUNT }, () => []);
-  // Stable: sort by name then assign by index mod TIER_COUNT.
   const sorted = [...services].sort((a, b) => a.name.localeCompare(b.name));
   sorted.forEach((s, i) => buckets[i % TIER_COUNT].push(s));
 
@@ -1222,24 +698,22 @@ export function Satellites({ services, colorVar, opacity, onSelect }: Satellites
 }
 ```
 
-- [ ] **Step 4: Pass + commit**
+- [ ] **Step 2: Commit**
 
 ```bash
-pnpm test Satellites
-git add client/src/components/SolarSystem/Planet/Satellites.tsx client/src/components/SolarSystem/Planet/Satellites.test.tsx
+git add client/src/components/SolarSystem/Planet/Satellites.tsx
 git commit -m "feat(solar-system): Satellites with tier distribution"
 ```
 
 ---
 
-## Task 13: Chrome — Brackets
+## Task 12: Chrome — Brackets
 
 **Files:**
 - Create: `client/src/components/SolarSystem/Chrome/Brackets.tsx`
 
-- [ ] **Step 1: Implement (no behavior, no test needed for static SVG)**
+- [ ] **Step 1: Implement**
 
-Create `client/src/components/SolarSystem/Chrome/Brackets.tsx`:
 ```tsx
 import { VIEWBOX_W, VIEWBOX_H } from '../layout';
 
@@ -1267,42 +741,13 @@ git commit -m "feat(chrome): corner brackets"
 
 ---
 
-## Task 14: Chrome — Header (top label + clock)
+## Task 13: Chrome — Header (top label + clock)
 
 **Files:**
 - Create: `client/src/components/SolarSystem/Chrome/Header.tsx`
-- Create: `client/src/components/SolarSystem/Chrome/Header.test.tsx`
 
-- [ ] **Step 1: Failing test**
+- [ ] **Step 1: Implement**
 
-Create `client/src/components/SolarSystem/Chrome/Header.test.tsx`:
-```tsx
-import { render } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
-import { Header } from './Header';
-
-describe('Header', () => {
-  it('renders system header in system view', () => {
-    const { container } = render(<svg><Header view={{ kind: 'system' }} /></svg>);
-    expect(container.textContent).toContain('APSELINE');
-    expect(container.textContent).toContain('SYSTEM');
-  });
-  it('renders planet header in planet view', () => {
-    const { container } = render(<svg><Header view={{ kind: 'planet', nodeId: 'perihelion' }} /></svg>);
-    expect(container.textContent).toContain('PERIHELION');
-  });
-});
-```
-
-- [ ] **Step 2: Run, expect fail**
-
-```bash
-pnpm test Header
-```
-
-- [ ] **Step 3: Implement Header.tsx**
-
-Create `client/src/components/SolarSystem/Chrome/Header.tsx`:
 ```tsx
 import { useEffect, useState } from 'react';
 import type { View } from '../../../stores/viewStore';
@@ -1313,6 +758,14 @@ function fmtClock(d: Date) {
   return `${z(d.getUTCHours())}:${z(d.getUTCMinutes())}:${z(d.getUTCSeconds())}Z`;
 }
 
+function headerLines(view: View): { primary: string; secondary: string } {
+  if (view.kind === 'system') {
+    return { primary: 'APSELINE ▸ SYSTEM', secondary: 'NODES: 4 / SVCS: — / OK' };
+  }
+  const node = findNode(view.nodeId);
+  return { primary: `${node?.label ?? '—'} ▸ NODE`, secondary: 'CPU — · MEM — · UP —' };
+}
+
 export function Header({ view }: { view: View }) {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -1321,7 +774,9 @@ export function Header({ view }: { view: View }) {
   }, []);
 
   const { primary, secondary } = headerLines(view);
-  const accent = view.kind === 'system' ? 'rgba(160,145,214,0.85)' : `var(--${findNode(view.nodeId)?.colorVar ?? 'color-perihelion'})`;
+  const accentVar =
+    view.kind === 'system' ? null : findNode(view.nodeId)?.colorVar ?? 'color-perihelion';
+  const accent = accentVar ? `var(--${accentVar})` : 'rgba(160,145,214,0.85)';
 
   return (
     <g fontFamily="ui-monospace, Menlo, monospace" fontSize={9} letterSpacing={1}>
@@ -1331,34 +786,24 @@ export function Header({ view }: { view: View }) {
     </g>
   );
 }
-
-function headerLines(view: View): { primary: string; secondary: string } {
-  if (view.kind === 'system') {
-    return { primary: 'APSELINE ▸ SYSTEM', secondary: 'NODES: 4 / SVCS: — / OK' };
-  }
-  const node = findNode(view.kind === 'planet' ? view.nodeId : view.nodeId);
-  return { primary: `${node?.label ?? '—'} ▸ NODE`, secondary: 'CPU — · MEM — · UP —' };
-}
 ```
 
-- [ ] **Step 4: Pass + commit**
+- [ ] **Step 2: Commit**
 
 ```bash
-pnpm test Header
-git add client/src/components/SolarSystem/Chrome/Header.tsx client/src/components/SolarSystem/Chrome/Header.test.tsx
+git add client/src/components/SolarSystem/Chrome/Header.tsx
 git commit -m "feat(chrome): top header with view-aware label + UTC clock"
 ```
 
 ---
 
-## Task 15: Chrome — Telemetry (bottom-left)
+## Task 14: Chrome — Telemetry
 
 **Files:**
 - Create: `client/src/components/SolarSystem/Chrome/Telemetry.tsx`
 
 - [ ] **Step 1: Implement**
 
-Create `client/src/components/SolarSystem/Chrome/Telemetry.tsx`:
 ```tsx
 import { VIEWBOX_H } from '../layout';
 
@@ -1395,43 +840,13 @@ git commit -m "feat(chrome): bottom-left telemetry strip"
 
 ---
 
-## Task 16: Chrome — UtilityDock (bottom-right)
+## Task 15: Chrome — UtilityDock
 
 **Files:**
 - Create: `client/src/components/SolarSystem/Chrome/UtilityDock.tsx`
-- Create: `client/src/components/SolarSystem/Chrome/UtilityDock.test.tsx`
 
-- [ ] **Step 1: Failing test**
+- [ ] **Step 1: Implement**
 
-Create `client/src/components/SolarSystem/Chrome/UtilityDock.test.tsx`:
-```tsx
-import { render, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
-import { UtilityDock } from './UtilityDock';
-
-describe('UtilityDock', () => {
-  it('renders settings/logs/discovery and alerts pip', () => {
-    const onItem = vi.fn();
-    const { container, getByText } = render(<svg><UtilityDock alertCount={2} onItem={onItem} /></svg>);
-    expect(container.textContent).toContain('settings');
-    expect(container.textContent).toContain('logs');
-    expect(container.textContent).toContain('discovery');
-    expect(container.textContent).toContain('alerts · 2');
-    fireEvent.click(getByText('settings'));
-    expect(onItem).toHaveBeenCalledWith('settings');
-  });
-});
-```
-
-- [ ] **Step 2: Run, expect fail**
-
-```bash
-pnpm test UtilityDock
-```
-
-- [ ] **Step 3: Implement UtilityDock.tsx**
-
-Create `client/src/components/SolarSystem/Chrome/UtilityDock.tsx`:
 ```tsx
 import { VIEWBOX_W, VIEWBOX_H } from '../layout';
 
@@ -1446,6 +861,15 @@ const ROW_Y_TOP = VIEWBOX_H - 35;
 const ROW_Y_BOT = VIEWBOX_H - 19;
 const COLS = [VIEWBOX_W - 200, VIEWBOX_W - 140, VIEWBOX_W - 97];
 
+function DockItem({ x, y, pip, fill, label, onClick }: { x: number; y: number; pip: string; fill: string; label: string; onClick: () => void }) {
+  return (
+    <g style={{ cursor: 'pointer' }} onClick={onClick}>
+      <circle cx={x} cy={y - 3} r={2} fill={pip} />
+      <text x={x + 8} y={y} fill={fill}>{label}</text>
+    </g>
+  );
+}
+
 export function UtilityDock({ alertCount = 0, onItem }: DockProps) {
   const dim = 'rgba(255,255,255,0.5)';
   const dimPip = 'rgba(255,255,255,0.35)';
@@ -1458,187 +882,23 @@ export function UtilityDock({ alertCount = 0, onItem }: DockProps) {
     </g>
   );
 }
-
-function DockItem({ x, y, pip, fill, label, onClick }: { x: number; y: number; pip: string; fill: string; label: string; onClick: () => void }) {
-  return (
-    <g style={{ cursor: 'pointer' }} onClick={onClick}>
-      <circle cx={x} cy={y - 3} r={2} fill={pip} />
-      <text x={x + 8} y={y} fill={fill}>{label}</text>
-    </g>
-  );
-}
 ```
 
-- [ ] **Step 4: Pass + commit**
+- [ ] **Step 2: Commit**
 
 ```bash
-pnpm test UtilityDock
-git add client/src/components/SolarSystem/Chrome/UtilityDock.tsx client/src/components/SolarSystem/Chrome/UtilityDock.test.tsx
+git add client/src/components/SolarSystem/Chrome/UtilityDock.tsx
 git commit -m "feat(chrome): bottom-right utility dock"
 ```
 
 ---
 
-## Task 17: Camera component
+## Task 16: Camera component
 
 **Files:**
 - Create: `client/src/components/SolarSystem/Camera.tsx`
-- Create: `client/src/components/SolarSystem/Camera.test.tsx`
 
-- [ ] **Step 1: Failing test**
-
-Create `client/src/components/SolarSystem/Camera.test.tsx`:
-```tsx
-import { render } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
-import { Camera, computeCameraTarget } from './Camera';
-import { findNode, STAR } from './layout';
-
-describe('computeCameraTarget', () => {
-  it('returns system center for system view', () => {
-    const t = computeCameraTarget({ kind: 'system' });
-    expect(t.scale).toBe(1);
-  });
-  it('centers on planet position for planet view with PLANET_SCALE', () => {
-    const t = computeCameraTarget({ kind: 'planet', nodeId: 'perihelion' });
-    const p = findNode('perihelion')!.position;
-    expect(t.x).toBe(p.x);
-    expect(t.y).toBe(p.y);
-    expect(t.scale).toBeGreaterThan(1);
-  });
-  it('apex sits directly above the star', () => {
-    const t = computeCameraTarget({ kind: 'system' });
-    expect(STAR.x).toBe(300);
-  });
-});
-
-describe('Camera', () => {
-  it('renders children inside a transformed g', () => {
-    const { container } = render(
-      <svg><Camera view={{ kind: 'system' }} transitionId={0}><circle data-child r={1} /></Camera></svg>
-    );
-    expect(container.querySelector('circle[data-child]')).toBeTruthy();
-  });
-});
-```
-
-- [ ] **Step 2: Run, expect fail**
-
-```bash
-pnpm test Camera
-```
-
-- [ ] **Step 3: Implement Camera.tsx**
-
-Create `client/src/components/SolarSystem/Camera.tsx`:
-```tsx
-import { motion, useReducedMotion } from 'framer-motion';
-import { useEffect, useMemo, useRef } from 'react';
-import type { View } from '../../stores/viewStore';
-import { findNode, STAR, VIEWBOX_W, VIEWBOX_H, PLANET_SCALE, SYSTEM_SCALE } from './layout';
-import {
-  quadBezier, easeInOutCubic, lerp,
-  SWOOP_DURATION_MS, ZOOM_IN_DURATION_MS, ZOOM_OUT_DURATION_MS,
-} from '../../lib/transitions';
-import type { Pt } from '../../lib/geometry';
-
-export interface CameraTarget { x: number; y: number; scale: number }
-
-const SYSTEM_CENTER: Pt = { x: VIEWBOX_W / 2, y: VIEWBOX_H / 2 };
-const APEX: Pt = { x: STAR.x, y: STAR.y - 200 };
-
-export function computeCameraTarget(view: View): CameraTarget {
-  if (view.kind === 'system') return { x: SYSTEM_CENTER.x, y: SYSTEM_CENTER.y, scale: SYSTEM_SCALE };
-  const node = findNode(view.kind === 'planet' ? view.nodeId : view.nodeId);
-  if (!node) return { x: SYSTEM_CENTER.x, y: SYSTEM_CENTER.y, scale: SYSTEM_SCALE };
-  return { x: node.position.x, y: node.position.y, scale: PLANET_SCALE };
-}
-
-function transitionDurationMs(prev: View, next: View): number {
-  if (prev.kind === 'system' && next.kind === 'planet') return ZOOM_IN_DURATION_MS;
-  if (prev.kind === 'planet' && next.kind === 'system') return ZOOM_OUT_DURATION_MS;
-  if (prev.kind === 'planet' && next.kind === 'planet' && prev.nodeId !== next.nodeId) return SWOOP_DURATION_MS;
-  return 0;
-}
-
-function useCameraAnimation(view: View, transitionId: number, reduced: boolean) {
-  const prevRef = useRef<View>(view);
-  const ref = useRef<{ x: number; y: number; scale: number }>(computeCameraTarget(view));
-  const animRef = useRef<number | null>(null);
-  const tickRef = useRef<{ start: number; from: CameraTarget; to: CameraTarget; duration: number; useApex: boolean } | null>(null);
-  const [, force] = useTickState();
-
-  useEffect(() => {
-    const prev = prevRef.current;
-    const next = view;
-    prevRef.current = next;
-    const to = computeCameraTarget(next);
-    const from = ref.current;
-    const duration = reduced ? 0 : transitionDurationMs(prev, next);
-    const useApex = !reduced && prev.kind === 'planet' && next.kind === 'planet' && prev.nodeId !== next.nodeId;
-    if (duration === 0) {
-      ref.current = to;
-      force();
-      return;
-    }
-    tickRef.current = { start: performance.now(), from, to, duration, useApex };
-    if (animRef.current) cancelAnimationFrame(animRef.current);
-    const step = (now: number) => {
-      const t = tickRef.current!;
-      const raw = Math.min(1, (now - t.start) / t.duration);
-      const eased = easeInOutCubic(raw);
-      const pos = t.useApex
-        ? quadBezier(eased, t.from, APEX, t.to)
-        : { x: lerp(t.from.x, t.to.x, eased), y: lerp(t.from.y, t.to.y, eased) };
-      const scale = t.useApex
-        ? (raw < 0.5 ? lerp(t.from.scale, SYSTEM_SCALE, eased * 2) : lerp(SYSTEM_SCALE, t.to.scale, (eased - 0.5) * 2))
-        : lerp(t.from.scale, t.to.scale, eased);
-      ref.current = { x: pos.x, y: pos.y, scale };
-      force();
-      if (raw < 1) animRef.current = requestAnimationFrame(step);
-    };
-    animRef.current = requestAnimationFrame(step);
-    return () => { if (animRef.current) cancelAnimationFrame(animRef.current); };
-    // transitionId in dep array forces re-evaluation on mid-flight redirect
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [transitionId, reduced]);
-
-  return ref.current;
-}
-
-function useTickState(): [number, () => void] {
-  const ref = useRef(0);
-  const setRef = useRef<(n: number) => void>(() => {});
-  const [v, setV] = useStateLite();
-  setRef.current = setV;
-  return [v, () => { ref.current++; setRef.current(ref.current); }];
-}
-
-// Tiny shim to avoid importing useState into multiple places
-import { useState as useStateLite } from 'react';
-
-interface CameraProps {
-  view: View;
-  transitionId: number;
-  children: React.ReactNode;
-}
-
-export function Camera({ view, transitionId, children }: CameraProps) {
-  const reduced = !!useReducedMotion();
-  const cam = useCameraAnimation(view, transitionId, reduced);
-  // viewBox stays fixed; we apply translate+scale to a g group so the camera's "look-target"
-  // is positioned at the viewBox center (VIEWBOX_W/2, VIEWBOX_H/2).
-  const tx = useMemo(() => VIEWBOX_W / 2 - cam.x * cam.scale, [cam.x, cam.scale]);
-  const ty = useMemo(() => VIEWBOX_H / 2 - cam.y * cam.scale, [cam.y, cam.scale]);
-  return (
-    <motion.g transform={`translate(${tx} ${ty}) scale(${cam.scale})`}>{children}</motion.g>
-  );
-}
-```
-
-- [ ] **Step 4: Replace the inline shim with proper hooks**
-
-Replace the bottom of `Camera.tsx` (the `useTickState` and the trailing `import { useState as useStateLite }`) with a clean version. Final file should look like this — overwrite Camera.tsx with the cleaned version below:
+- [ ] **Step 1: Implement**
 
 ```tsx
 import { motion, useReducedMotion } from 'framer-motion';
@@ -1658,8 +918,7 @@ const APEX: Pt = { x: STAR.x, y: STAR.y - 200 };
 
 export function computeCameraTarget(view: View): CameraTarget {
   if (view.kind === 'system') return { x: SYSTEM_CENTER.x, y: SYSTEM_CENTER.y, scale: SYSTEM_SCALE };
-  const id = view.kind === 'planet' ? view.nodeId : view.nodeId;
-  const node = findNode(id);
+  const node = findNode(view.nodeId);
   if (!node) return { x: SYSTEM_CENTER.x, y: SYSTEM_CENTER.y, scale: SYSTEM_SCALE };
   return { x: node.position.x, y: node.position.y, scale: PLANET_SCALE };
 }
@@ -1723,27 +982,25 @@ export function Camera({ view, transitionId, children }: CameraProps) {
 }
 ```
 
-- [ ] **Step 5: Pass + commit**
+- [ ] **Step 2: Commit**
 
 ```bash
-pnpm test Camera
-git add client/src/components/SolarSystem/Camera.tsx client/src/components/SolarSystem/Camera.test.tsx
+git add client/src/components/SolarSystem/Camera.tsx
 git commit -m "feat(camera): rAF-driven camera with bezier swoop + reduced-motion"
 ```
 
 ---
 
-## Task 18: SolarSystem outer component (composition)
+## Task 17: SolarSystem composition
 
 **Files:**
 - Create: `client/src/components/SolarSystem/index.tsx`
 
 - [ ] **Step 1: Implement**
 
-Create `client/src/components/SolarSystem/index.tsx`:
 ```tsx
 import { useState, useEffect } from 'react';
-import { useViewStore } from '../../stores/viewStore';
+import { useViewStore, type View } from '../../stores/viewStore';
 import { useServicesStore } from '../../stores/servicesStore';
 import { Camera } from './Camera';
 import { Star } from './Star';
@@ -1755,16 +1012,38 @@ import { Brackets } from './Chrome/Brackets';
 import { Header } from './Chrome/Header';
 import { Telemetry } from './Chrome/Telemetry';
 import { UtilityDock } from './Chrome/UtilityDock';
-import { NODES, VIEWBOX_W, VIEWBOX_H } from './layout';
+import { NODES, VIEWBOX_W, VIEWBOX_H, findNode } from './layout';
 import { ZOOM_IN_DURATION_MS, SWOOP_DURATION_MS, SATELLITE_FADE_MS } from '../../lib/transitions';
+
+function useSatelliteFade(view: View, transitionId: number) {
+  const [op, setOp] = useState(view.kind === 'planet' || view.kind === 'service' ? 1 : 0);
+  useEffect(() => {
+    if (view.kind === 'system') { setOp(0); return; }
+    const total = view.kind === 'planet' ? ZOOM_IN_DURATION_MS : SWOOP_DURATION_MS;
+    const fadeStart = total - SATELLITE_FADE_MS;
+    setOp(0);
+    let raf = 0;
+    const t1 = setTimeout(() => {
+      const start = performance.now();
+      const tick = (now: number) => {
+        const t = Math.min(1, (now - start) / SATELLITE_FADE_MS);
+        setOp(t);
+        if (t < 1) raf = requestAnimationFrame(tick);
+      };
+      raf = requestAnimationFrame(tick);
+    }, fadeStart);
+    return () => { clearTimeout(t1); cancelAnimationFrame(raf); };
+  }, [transitionId, view.kind]);
+  return op;
+}
 
 export function SolarSystem() {
   const { view, transitionId, navigate, openService } = useViewStore();
   const services = useServicesStore((s) => s.services);
   const satOpacity = useSatelliteFade(view, transitionId);
 
-  const planetView = view.kind === 'planet' || view.kind === 'service' ? view : null;
-  const activeNodeId = planetView?.nodeId ?? null;
+  const activeNodeId = view.kind === 'planet' || view.kind === 'service' ? view.nodeId : null;
+  const activeNode = activeNodeId ? findNode(activeNodeId) : null;
 
   return (
     <div style={{ width: '100vw', height: '100vh', background: 'var(--color-bg)' }}>
@@ -1790,11 +1069,11 @@ export function SolarSystem() {
               onClick={() => navigate({ kind: 'planet', nodeId: n.id })}
             />
           ))}
-          {activeNodeId && (
-            <g transform={`translate(${NODES.find(n => n.id === activeNodeId)!.position.x} ${NODES.find(n => n.id === activeNodeId)!.position.y})`}>
+          {activeNode && (
+            <g transform={`translate(${activeNode.position.x} ${activeNode.position.y})`}>
               <Satellites
-                services={services.filter(s => s.infrastructure === activeNodeId)}
-                colorVar={NODES.find(n => n.id === activeNodeId)!.colorVar}
+                services={services.filter(s => s.infrastructure === activeNode.id)}
+                colorVar={activeNode.colorVar}
                 opacity={satOpacity}
                 onSelect={openService}
               />
@@ -1802,7 +1081,6 @@ export function SolarSystem() {
           )}
         </Camera>
 
-        {/* Chrome lives outside the camera so it stays put */}
         <Brackets />
         <Header view={view} />
         <Telemetry serviceCount={services.length} />
@@ -1811,34 +1089,11 @@ export function SolarSystem() {
     </div>
   );
 }
-
-function useSatelliteFade(view: any, transitionId: number) {
-  // Holds at 0 during the early phase of an arrival, ramps to 1 in the final SATELLITE_FADE_MS.
-  const [op, setOp] = useState(view.kind === 'planet' || view.kind === 'service' ? 1 : 0);
-  useEffect(() => {
-    if (view.kind === 'system') { setOp(0); return; }
-    const total = view.kind === 'planet' ? ZOOM_IN_DURATION_MS : SWOOP_DURATION_MS;
-    const fadeStart = total - SATELLITE_FADE_MS;
-    setOp(0);
-    const t1 = setTimeout(() => {
-      const start = performance.now();
-      let raf = 0;
-      const tick = (now: number) => {
-        const t = Math.min(1, (now - start) / SATELLITE_FADE_MS);
-        setOp(t);
-        if (t < 1) raf = requestAnimationFrame(tick);
-      };
-      raf = requestAnimationFrame(tick);
-    }, fadeStart);
-    return () => clearTimeout(t1);
-  }, [transitionId]);
-  return op;
-}
 ```
 
-- [ ] **Step 2: Manual smoke**
+- [ ] **Step 2: Smoke**
 
-Run `pnpm dev` from `client/`. Open the URL. Expect: empty solar system rendered (no services until backend serves data, but planets/orbits/chrome should show).
+Run from `client/`: `pnpm dev`. Note: services data won't render yet because `App.tsx` still uses the old structure — that's wired up in Task 21. For now confirm the file compiles by running `pnpm build` from `client/`.
 
 - [ ] **Step 3: Commit**
 
@@ -1849,16 +1104,16 @@ git commit -m "feat(solar-system): SolarSystem composition with camera + chrome"
 
 ---
 
-## Task 19: Service detail modal — frame, callout, content
+## Task 18: ServiceModal (frame, callout, highlight)
 
 **Files:**
-- Create: `client/src/components/SolarSystem/ServiceModal/index.tsx`
 - Create: `client/src/components/SolarSystem/ServiceModal/CalloutLine.tsx`
 - Create: `client/src/components/SolarSystem/ServiceModal/SatelliteHighlight.tsx`
+- Create: `client/src/components/SolarSystem/ServiceModal/index.tsx`
+- Modify: `client/src/components/SolarSystem/index.tsx`
 
 - [ ] **Step 1: Implement CalloutLine**
 
-Create `client/src/components/SolarSystem/ServiceModal/CalloutLine.tsx`:
 ```tsx
 interface CalloutLineProps {
   fromX: number; fromY: number; toX: number; toY: number; colorVar: string;
@@ -1880,7 +1135,6 @@ export function CalloutLine({ fromX, fromY, toX, toY, colorVar }: CalloutLinePro
 
 - [ ] **Step 2: Implement SatelliteHighlight**
 
-Create `client/src/components/SolarSystem/ServiceModal/SatelliteHighlight.tsx`:
 ```tsx
 interface Props { x: number; y: number; colorVar: string }
 export function SatelliteHighlight({ x, y, colorVar }: Props) {
@@ -1894,9 +1148,8 @@ export function SatelliteHighlight({ x, y, colorVar }: Props) {
 }
 ```
 
-- [ ] **Step 3: Implement modal index.tsx**
+- [ ] **Step 3: Implement ServiceModal/index.tsx**
 
-Create `client/src/components/SolarSystem/ServiceModal/index.tsx`:
 ```tsx
 import { useEffect } from 'react';
 import type { Service } from '@apseline/shared';
@@ -1908,6 +1161,37 @@ interface ServiceModalProps {
   serviceId: string;
   services: Service[];
 }
+
+function hostnameOf(url: string) { try { return new URL(url).host; } catch { return url; } }
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', color: 'rgba(255,255,255,0.5)' }}>
+      <span>{label}</span><span style={{ color: '#fff' }}>{value}</span>
+    </div>
+  );
+}
+
+const modalShellStyle: React.CSSProperties = {
+  position: 'fixed', top: 30, right: 30, zIndex: 10,
+  fontFamily: 'ui-monospace, Menlo, monospace', color: 'rgba(255,255,255,0.7)',
+};
+const modalFrameStyle: React.CSSProperties = {
+  width: 340, background: 'rgba(10,10,20,0.92)', border: '1px solid', padding: 0,
+};
+const modalHeaderStyle: React.CSSProperties = {
+  borderBottom: '1px solid rgba(255,255,255,0.1)', padding: '14px 16px 12px',
+};
+const modalBodyStyle: React.CSSProperties = { padding: '14px 16px', fontSize: 11, lineHeight: 1.7 };
+const primaryBtn = (colorVar: string): React.CSSProperties => ({
+  flex: 1, background: `color-mix(in srgb, var(--${colorVar}) 15%, transparent)`,
+  border: `1px solid var(--${colorVar})`, color: `var(--${colorVar})`,
+  padding: 8, fontSize: 10, letterSpacing: 1.5, fontFamily: 'inherit', textAlign: 'center', textDecoration: 'none',
+});
+const ghostBtn: React.CSSProperties = {
+  flex: 1, background: 'transparent', border: '1px solid rgba(255,255,255,0.2)',
+  color: 'rgba(255,255,255,0.6)', padding: 8, fontSize: 10, letterSpacing: 1.5, fontFamily: 'inherit',
+};
 
 export function ServiceModal({ nodeId, serviceId, services }: ServiceModalProps) {
   const closeService = useViewStore((s) => s.closeService);
@@ -1950,62 +1234,30 @@ export function ServiceModal({ nodeId, serviceId, services }: ServiceModalProps)
     </div>
   );
 }
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', color: 'rgba(255,255,255,0.5)' }}>
-      <span>{label}</span><span style={{ color: '#fff' }}>{value}</span>
-    </div>
-  );
-}
-
-function hostnameOf(url: string) { try { return new URL(url).host; } catch { return url; } }
-
-const modalShellStyle: React.CSSProperties = {
-  position: 'fixed', top: 30, right: 30, zIndex: 10,
-  fontFamily: 'ui-monospace, Menlo, monospace', color: 'rgba(255,255,255,0.7)',
-};
-const modalFrameStyle: React.CSSProperties = {
-  width: 340, background: 'rgba(10,10,20,0.92)', border: '1px solid', padding: 0,
-};
-const modalHeaderStyle: React.CSSProperties = {
-  borderBottom: '1px solid rgba(255,255,255,0.1)', padding: '14px 16px 12px',
-};
-const modalBodyStyle: React.CSSProperties = { padding: '14px 16px', fontSize: 11, lineHeight: 1.7 };
-const primaryBtn = (colorVar: string): React.CSSProperties => ({
-  flex: 1, background: `color-mix(in srgb, var(--${colorVar}) 15%, transparent)`,
-  border: `1px solid var(--${colorVar})`, color: `var(--${colorVar})`,
-  padding: 8, fontSize: 10, letterSpacing: 1.5, fontFamily: 'inherit', textAlign: 'center', textDecoration: 'none',
-});
-const ghostBtn: React.CSSProperties = {
-  flex: 1, background: 'transparent', border: '1px solid rgba(255,255,255,0.2)',
-  color: 'rgba(255,255,255,0.6)', padding: 8, fontSize: 10, letterSpacing: 1.5, fontFamily: 'inherit',
-};
 ```
 
 - [ ] **Step 4: Wire modal + dim into SolarSystem**
 
-In `client/src/components/SolarSystem/index.tsx`, add at the top of the file:
+In `client/src/components/SolarSystem/index.tsx` add imports near the top:
+
 ```tsx
 import { ServiceModal } from './ServiceModal';
 import { SatelliteHighlight } from './ServiceModal/SatelliteHighlight';
 import { distributeSatellites } from './Planet/Satellites';
 ```
 
-Inside the returned tree (after `<UtilityDock …/>`), append:
+Inside the `<svg>` after `<UtilityDock …/>`, append:
+
 ```tsx
-{view.kind === 'service' && (() => {
-  const node = NODES.find(n => n.id === view.nodeId)!;
+{view.kind === 'service' && activeNode && (() => {
   const list = services.filter(s => s.infrastructure === view.nodeId);
   const slot = distributeSatellites(list).find(s => s.service.name === view.serviceId);
   return (
     <>
-      {/* dim background */}
       <rect x={0} y={0} width={VIEWBOX_W} height={VIEWBOX_H} fill="rgba(10,10,20,0.55)" pointerEvents="none" />
-      {/* highlight selected satellite (in scene-space) */}
       {slot && (
-        <g transform={`translate(${node.position.x} ${node.position.y})`}>
-          <SatelliteHighlight x={slot.x} y={slot.y} colorVar={node.colorVar} />
+        <g transform={`translate(${activeNode.position.x} ${activeNode.position.y})`}>
+          <SatelliteHighlight x={slot.x} y={slot.y} colorVar={activeNode.colorVar} />
         </g>
       )}
     </>
@@ -2013,39 +1265,38 @@ Inside the returned tree (after `<UtilityDock …/>`), append:
 })()}
 ```
 
-And **outside** the SVG (so HTML modal renders on top), inside the outer `<div>` after the `</svg>`:
+After the `</svg>` (still inside the outer `<div>`), append:
+
 ```tsx
 {view.kind === 'service' && (
   <ServiceModal nodeId={view.nodeId} serviceId={view.serviceId} services={services} />
 )}
 ```
 
-- [ ] **Step 5: Smoke + commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-pnpm dev   # click a planet, click a satellite, modal should appear; Esc closes it
 git add client/src/components/SolarSystem/ServiceModal client/src/components/SolarSystem/index.tsx
 git commit -m "feat(modal): service detail modal with callout + dim backdrop"
 ```
 
 ---
 
-## Task 20: Retune OrbitalBackground to use theme variables
+## Task 19: Retune OrbitalBackground to use theme variables
 
 **Files:**
 - Modify: `client/src/components/OrbitalBackground.tsx`
-- Modify: `client/src/App.tsx` (still using it via existing wiring)
 
-- [ ] **Step 1: Replace hardcoded colors with CSS-var lookup**
+- [ ] **Step 1: Replace `getColors()` with theme-var-driven version**
 
-In `client/src/components/OrbitalBackground.tsx`, replace the `getColors()` function with:
+In `OrbitalBackground.tsx`, replace the `getColors` function with:
+
 ```ts
 const getColors = () => {
   const root = getComputedStyle(document.documentElement);
   const hex = (infrastructure === 'perihelion'
     ? root.getPropertyValue('--color-perihelion')
     : root.getPropertyValue('--color-aphelion')).trim() || '#DA79B0';
-  // Convert hex to "rgba(r, g, b, " prefix
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
@@ -2053,25 +1304,24 @@ const getColors = () => {
 };
 ```
 
-- [ ] **Step 2: Smoke + commit**
+- [ ] **Step 2: Commit**
 
 ```bash
-pnpm dev   # background particles should now match the active theme
 git add client/src/components/OrbitalBackground.tsx
 git commit -m "chore(bg): retune particle color to theme vars"
 ```
 
 ---
 
-## Task 21: ThemePicker (settings overlay)
+## Task 20: ThemePicker + SettingsPanel
 
 **Files:**
 - Create: `client/src/components/SolarSystem/Settings/ThemePicker.tsx`
 - Create: `client/src/components/SolarSystem/Settings/SettingsPanel.tsx`
+- Modify: `client/src/components/SolarSystem/index.tsx`
 
 - [ ] **Step 1: Implement ThemePicker**
 
-Create `client/src/components/SolarSystem/Settings/ThemePicker.tsx`:
 ```tsx
 import { THEMES, type ThemeId } from '../../../lib/palette';
 import { useThemeStore } from '../../../stores/themeStore';
@@ -2106,7 +1356,6 @@ export function ThemePicker() {
 
 - [ ] **Step 2: Implement SettingsPanel**
 
-Create `client/src/components/SolarSystem/Settings/SettingsPanel.tsx`:
 ```tsx
 import { ThemePicker } from './ThemePicker';
 
@@ -2132,59 +1381,59 @@ export function SettingsPanel({ open, onClose }: Props) {
 
 - [ ] **Step 3: Wire into SolarSystem**
 
-In `client/src/components/SolarSystem/index.tsx`, near other imports add:
+Add to imports in `SolarSystem/index.tsx`:
+
 ```tsx
 import { SettingsPanel } from './Settings/SettingsPanel';
 ```
 
-Replace the existing `useState, useEffect` import line with:
-```tsx
-import { useState, useEffect } from 'react';
-```
+Inside the component, add state:
 
-Inside the component, add:
 ```tsx
 const [openPanel, setOpenPanel] = useState<null | 'settings' | 'logs' | 'discovery' | 'alerts'>(null);
 ```
 
-Replace the `<UtilityDock alertCount={0} onItem={() => { /* wired in later task */ }} />` line with:
+Replace the `<UtilityDock alertCount={0} onItem={...}/>` line with:
+
 ```tsx
 <UtilityDock alertCount={0} onItem={(id) => setOpenPanel(id)} />
 ```
 
-After the `</svg>` (and after the existing `view.kind === 'service'` modal) add:
+After the existing `view.kind === 'service'` modal block (still inside the outer `<div>`), append:
+
 ```tsx
 <SettingsPanel open={openPanel === 'settings'} onClose={() => setOpenPanel(null)} />
 ```
 
-- [ ] **Step 4: Smoke + commit**
+- [ ] **Step 4: Commit**
 
 ```bash
-pnpm dev    # click "settings" in dock → panel opens → click a theme → background + accents change
 git add client/src/components/SolarSystem/Settings client/src/components/SolarSystem/index.tsx
 git commit -m "feat(settings): theme picker with 6 themes"
 ```
 
 ---
 
-## Task 22: Boot wiring — apply theme on startup, render SolarSystem
+## Task 21: Boot wiring + delete obsolete components
 
 **Files:**
 - Modify: `client/src/main.tsx`
 - Modify: `client/src/App.tsx`
+- Delete: `client/src/components/Header.tsx`, `ServiceCard.tsx`, `ServiceGrid.tsx`
 
 - [ ] **Step 1: Apply theme on boot**
 
-Modify `client/src/main.tsx` to call `initFromStorage` before React mounts. Keep existing structure; add:
+In `client/src/main.tsx`, add after imports and before `ReactDOM.createRoot(...)`:
+
 ```tsx
 import { useThemeStore } from './stores/themeStore';
 useThemeStore.getState().initFromStorage();
 ```
-Place that call after imports and before `ReactDOM.createRoot(...)`.
 
 - [ ] **Step 2: Replace App body**
 
-Overwrite `client/src/App.tsx` with:
+Overwrite `client/src/App.tsx`:
+
 ```tsx
 import { useEffect } from 'react';
 import { useServicesStore } from './stores/servicesStore';
@@ -2218,19 +1467,16 @@ export default App;
 - [ ] **Step 3: Delete obsolete components**
 
 ```bash
-rm client/src/components/Header.tsx
-rm client/src/components/ServiceCard.tsx
-rm client/src/components/ServiceGrid.tsx
+rm client/src/components/Header.tsx client/src/components/ServiceCard.tsx client/src/components/ServiceGrid.tsx
 ```
 
 - [ ] **Step 4: Build & smoke test**
 
-Run from `client/`:
 ```bash
-pnpm build
-pnpm dev
+cd client && pnpm build && pnpm dev
 ```
-Expected: build succeeds; dev server shows the new solar-system view; clicking Perihelion zooms in; clicking Aphelion swoops; Esc closes modals; settings dock opens theme picker; reduced-motion (DevTools rendering tab) disables camera moves.
+
+Expected: build clean; dev server shows the new solar-system view; clicking Perihelion zooms in; clicking Aphelion swoops; Esc closes the modal; settings dock opens the theme picker; reduced-motion (DevTools rendering tab) disables camera moves.
 
 - [ ] **Step 5: Commit**
 
@@ -2242,46 +1488,31 @@ git commit -m "feat: replace dashboard with solar-system; remove obsolete grid c
 
 ---
 
-## Task 23: Acceptance pass
+## Task 22: Acceptance pass
 
-- [ ] **Step 1: Run full test suite**
-
-```bash
-cd client && pnpm test
-```
-Expected: all tests PASS.
-
-- [ ] **Step 2: Build**
+- [ ] **Step 1: Build**
 
 ```bash
-pnpm build
+cd client && pnpm build
 ```
+
 Expected: tsc + vite build clean.
 
-- [ ] **Step 3: Manual acceptance against spec §10**
+- [ ] **Step 2: Manual acceptance against spec §10**
 
 Verify each line in [`docs/superpowers/specs/2026-05-01-orbital-redesign-design.md`](../specs/2026-05-01-orbital-redesign-design.md) §10:
 
 1. Default landing renders system view with star, three orbits, Perihelion at left vertex, Aphelion at right vertex, two outer planets visible.
 2. Clicking a primary planet performs the §4.1 zoom-in dolly to a planet view in ≤ 600ms.
 3. Clicking a different primary planet from a planet view performs the §4.2 swoop in ≤ 800ms with chrome cross-fade at the apex.
-4. Clicking a satellite opens the §5 modal anchored top-right with callout line.
+4. Clicking a satellite opens the §5 modal anchored top-right.
 5. Bottom-left telemetry and bottom-right utility dock render and are sized within ±2px of each other's baseline.
 6. Theme picker switches between the six themes with no flash.
 7. `prefers-reduced-motion: reduce` disables all camera moves; navigation still works.
-8. All transitions sustain 60fps on a 2020-era laptop in Chrome and Firefox (DevTools Performance panel).
+8. All transitions sustain 60fps on a 2020-era laptop in Chrome and Firefox.
 
-- [ ] **Step 4: Final commit**
+- [ ] **Step 3: Final commit**
 
 ```bash
 git commit --allow-empty -m "chore: orbital redesign complete (acceptance pass)"
 ```
-
----
-
-## Self-review checklist (run before declaring plan ready)
-
-- ✅ **Spec coverage:** every section of the spec has a task. §1 vision → Task 18+22. §2 spatial model → Tasks 7,8,9,10,11,12. §3 navigation → Task 6. §4 transitions → Tasks 3,17,18. §5 modal → Task 19. §6 palette/themes → Tasks 4,5,21. §7 architecture → file map + all tasks. §10 acceptance → Task 23.
-- ✅ **No placeholders:** every code-bearing step contains the full code, not "implement similar to…".
-- ✅ **Type consistency:** `View`, `CameraTarget`, `Pt`, `ThemeId`, `NodeDescriptor` are each defined exactly once and referenced consistently across tasks.
-- ✅ **Frequent commits:** every task ends with a commit step.
