@@ -1,4 +1,4 @@
-import { motion, useReducedMotion } from 'framer-motion';
+import { useReducedMotion } from 'framer-motion';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { View } from '../../stores/viewStore';
 import { findNode, STAR, VIEWBOX_W, VIEWBOX_H, PLANET_SCALE, SYSTEM_SCALE } from './layout';
@@ -39,8 +39,14 @@ export function Camera({ view, transitionId, children }: CameraProps) {
   const camRef = useRef(cam);
   camRef.current = cam;
   const prevViewRef = useRef<View>(view);
+  const lastIdRef = useRef(-1);
+  const rafRef = useRef<number>(0);
 
   useEffect(() => {
+    // Idempotent under React 19 StrictMode double-invoke: only run a given transitionId once.
+    if (lastIdRef.current === transitionId) return;
+    lastIdRef.current = transitionId;
+
     const prev = prevViewRef.current;
     const next = view;
     prevViewRef.current = next;
@@ -48,9 +54,11 @@ export function Camera({ view, transitionId, children }: CameraProps) {
     const from = camRef.current;
     const duration = reduced ? 0 : durationFor(prev, next);
     const useApex = !reduced && prev.kind === 'planet' && next.kind === 'planet' && prev.nodeId !== next.nodeId;
+
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+
     if (duration === 0) { setCam(to); return; }
 
-    let raf = 0;
     const start = performance.now();
     const tick = (now: number) => {
       const raw = Math.min(1, (now - start) / duration);
@@ -64,16 +72,14 @@ export function Camera({ view, transitionId, children }: CameraProps) {
             : lerp(SYSTEM_SCALE, to.scale, (eased - 0.5) * 2))
         : lerp(from.scale, to.scale, eased);
       setCam({ x: pos.x, y: pos.y, scale });
-      if (raw < 1) raf = requestAnimationFrame(tick);
+      if (raw < 1) rafRef.current = requestAnimationFrame(tick);
     };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [transitionId, reduced]);
+    rafRef.current = requestAnimationFrame(tick);
+  }, [transitionId, view, reduced]);
 
   const tx = useMemo(() => VIEWBOX_W / 2 - cam.x * cam.scale, [cam.x, cam.scale]);
   const ty = useMemo(() => VIEWBOX_H / 2 - cam.y * cam.scale, [cam.y, cam.scale]);
   return (
-    <motion.g transform={`translate(${tx} ${ty}) scale(${cam.scale})`}>{children}</motion.g>
+    <g transform={`translate(${tx} ${ty}) scale(${cam.scale})`}>{children}</g>
   );
 }
