@@ -19,6 +19,15 @@ export default {
           glow: 'rgba(139, 92, 246, 0.2)',
         },
         // Neutral - Darker, more sophisticated
+        themed: {
+          bg:         'var(--color-bg)',
+          perihelion: 'var(--color-perihelion)',
+          aphelion:   'var(--color-aphelion)',
+          cloudflare: 'var(--color-cloudflare)',
+          gce:        'var(--color-gce)',
+          warn:       'var(--color-warn)',
+          alerts:     'var(--color-alerts)',
+        },
         space: {
           background: '#0F0F1E',  // Very dark navy
           surface: '#1A1A2E',     // Dark surface

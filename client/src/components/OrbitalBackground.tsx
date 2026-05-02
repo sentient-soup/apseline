@@ -58,17 +58,15 @@ export function OrbitalBackground({ infrastructure }: OrbitalBackgroundProps) {
 
     createParticles();
 
-    // Subtle colors based on infrastructure
     const getColors = () => {
-      if (infrastructure === 'perihelion') {
-        return {
-          particle: 'rgba(236, 72, 153, ',
-        };
-      } else {
-        return {
-          particle: 'rgba(139, 92, 246, ',
-        };
-      }
+      const root = getComputedStyle(document.documentElement);
+      const hex = (infrastructure === 'perihelion'
+        ? root.getPropertyValue('--color-perihelion')
+        : root.getPropertyValue('--color-aphelion')).trim() || '#DA79B0';
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      return { particle: `rgba(${r}, ${g}, ${b}, ` };
     };
 
     // Animation loop

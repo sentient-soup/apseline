@@ -2,15 +2,23 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom CSS Variables */
 :root {
+  --color-bg: #13121A;
+  --color-perihelion: #DA79B0;
+  --color-aphelion: #A091D6;
+  --color-cloudflare: #7BA5CC;
+  --color-gce: #7DC0A4;
+  --color-warn: #D4B97A;
+  --color-alerts: #D48989;
+
   --perihelion-glow: rgba(236, 72, 153, 0.3);
   --aphelion-glow: rgba(139, 92, 246, 0.3);
 }
 
 /* Base Styles */
 body {
-  @apply bg-space-background text-white antialiased;
+  background: var(--color-bg);
+  @apply text-white antialiased;
   overflow-x: hidden;
 }
 
