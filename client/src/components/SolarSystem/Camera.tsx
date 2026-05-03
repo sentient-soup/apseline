@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import type { View } from '../../stores/viewStore';
 import { findNode, VIEWBOX_W, VIEWBOX_H, PLANET_SCALE, SYSTEM_SCALE } from './layout';
 import {
-  quadBezier, easeInOutCubic, lerp,
+  quadBezier, easeInOutCubic, easeOutCubic, easeInCubic, lerp,
   SWOOP_DURATION_MS, ZOOM_IN_DURATION_MS, ZOOM_OUT_DURATION_MS,
 } from '../../lib/transitions';
 import type { Pt } from '../../lib/geometry';
@@ -75,6 +75,7 @@ export function Camera({ view, transitionId, children }: CameraProps) {
     const duration = durationFor(prev, next);
     const useApex =
       prev.kind === 'planet' && next.kind === 'planet' && prev.nodeId !== next.nodeId;
+    const isOutbound = prev.kind === 'planet' && next.kind === 'system';
 
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
 
@@ -88,15 +89,21 @@ export function Camera({ view, transitionId, children }: CameraProps) {
     const start = performance.now();
     const tick = (now: number) => {
       const raw = Math.min(1, (now - start) / duration);
-      const eased = easeInOutCubic(raw);
+      const easedSym = easeInOutCubic(raw);
+      // System -> planet: pan eases out (centers early), zoom eases in
+      // (lands the push-in late). Planet -> system: mirror — pan eases in
+      // (lingers near the planet, then drifts), zoom eases out (pulls back
+      // first so the system is in frame quickly). Apex swoop stays symmetric.
+      const easedPan = useApex ? easedSym : (isOutbound ? easeInCubic(raw) : easeOutCubic(raw));
+      const easedZoom = useApex ? easedSym : (isOutbound ? easeOutCubic(raw) : easeInCubic(raw));
       const pos = useApex
-        ? quadBezier(eased, from, apex, to)
-        : { x: lerp(from.x, to.x, eased), y: lerp(from.y, to.y, eased) };
-      const scale = useApex
-        ? (raw < 0.5
-            ? lerp(from.scale, SYSTEM_SCALE, eased * 2)
-            : lerp(SYSTEM_SCALE, to.scale, (eased - 0.5) * 2))
-        : lerp(from.scale, to.scale, eased);
+        ? quadBezier(easedSym, from, apex, to)
+        : { x: lerp(from.x, to.x, easedPan), y: lerp(from.y, to.y, easedPan) };
+      // Swoop pulls scale way back at the midpoint via a sine dip so both
+      // planets and the flight path are legible during the arc.
+      const SWOOP_DIP = 0.94;
+      const dipFactor = useApex ? (1 - SWOOP_DIP * Math.sin(Math.PI * raw)) : 1;
+      const scale = lerp(from.scale, to.scale, easedZoom) * dipFactor;
       const cam = { x: pos.x, y: pos.y, scale };
       camRef.current = cam;
       writeTransform(cam);

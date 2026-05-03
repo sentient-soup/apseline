@@ -4,25 +4,36 @@ interface PlanetProps {
   colorVar: string;
   radius?: number;
   onClick?: () => void;
-  hintSatellites?: boolean;
 }
 
-export function Planet({ x, y, colorVar, radius = 16, onClick, hintSatellites = true }: PlanetProps) {
+// Wireframe sphere: outer circle, latitude ellipses (varying ry by row),
+// longitude ellipses (varying rx by column), faint halo.
+export function Planet({ x, y, colorVar, radius = 16, onClick }: PlanetProps) {
   const stroke = `var(--${colorVar})`;
+  // 5 latitudes: rows at -2,-1,0,1,2 of step. ry = radius * sin(angle).
+  const lats = [-2, -1, 0, 1, 2].map((i) => {
+    const a = (i / 3) * (Math.PI / 2); // -60°..60°
+    const cy = Math.sin(a) * radius;
+    const ry = Math.cos(a) * radius * 0.18; // ellipse flatness
+    const rx = Math.cos(a) * radius;
+    return { cy, rx, ry };
+  });
+  // 6 longitudes: ellipses sharing rx that varies by tilt
+  const longs = [0, 1, 2, 3, 4, 5].map((i) => {
+    const a = (i / 6) * Math.PI; // 0..π
+    const rx = Math.abs(Math.cos(a)) * radius;
+    return { rx };
+  });
+
   return (
     <g data-planet transform={`translate(${x} ${y})`} onClick={onClick} style={{ cursor: onClick ? 'pointer' : 'default' }}>
-      <circle r={radius + 4} fill="none" stroke={stroke} strokeOpacity={0.15} strokeWidth={0.5} />
-      <circle data-outline r={radius} fill="none" stroke={stroke} strokeWidth={0.5} />
-      <ellipse rx={radius} ry={radius} fill="none" stroke={stroke} strokeWidth={0.4} transform="skewX(20) rotate(15)" />
-      <ellipse rx={radius} ry={radius} fill="none" stroke={stroke} strokeWidth={0.4} transform="skewX(-20) rotate(-15)" />
-      <circle r={2} fill={stroke} />
-      {hintSatellites && (
-        <g>
-          <circle cx={radius + 4} cy={-3} r={1} fill={stroke} />
-          <circle cx={-radius - 2} cy={5} r={1} fill={stroke} />
-          <circle cx={0} cy={-radius - 4} r={1} fill={stroke} />
-        </g>
-      )}
+      <circle data-outline r={radius} fill="none" stroke={stroke} strokeWidth={0.06} />
+      {lats.map((l, i) => (
+        <ellipse key={`lat-${i}`} cy={l.cy} rx={l.rx} ry={l.ry} fill="none" stroke={stroke} strokeOpacity={0.55} strokeWidth={0.035} />
+      ))}
+      {longs.map((l, i) => (
+        <ellipse key={`lon-${i}`} rx={l.rx} ry={radius} fill="none" stroke={stroke} strokeOpacity={0.55} strokeWidth={0.035} />
+      ))}
     </g>
   );
 }

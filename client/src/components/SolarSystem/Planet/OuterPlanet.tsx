@@ -1,3 +1,5 @@
+import { Planet } from './index';
+
 interface OuterPlanetProps {
   x: number;
   y: number;
@@ -6,18 +8,10 @@ interface OuterPlanetProps {
   onClick?: () => void;
 }
 
-export function OuterPlanet({ x, y, colorVar, label, onClick }: OuterPlanetProps) {
-  const stroke = `var(--${colorVar})`;
+export function OuterPlanet({ x, y, colorVar, onClick }: OuterPlanetProps) {
   return (
     <g onClick={onClick} style={{ cursor: onClick ? 'pointer' : 'default' }}>
-      <g data-outer-planet transform={`translate(${x} ${y})`}>
-        <circle r={9} fill="none" stroke={stroke} strokeWidth={0.4} />
-        <ellipse rx={9} ry={9} fill="none" stroke={stroke} strokeWidth={0.3} transform="skewX(20)" />
-        <circle r={1.2} fill={stroke} />
-      </g>
-      <text x={x} y={y + 25} textAnchor="middle" fontSize={8} fontFamily="ui-monospace, Menlo, monospace" letterSpacing={1} fill={stroke} fillOpacity={0.85}>
-        {label}
-      </text>
+      <Planet x={x} y={y} colorVar={colorVar} radius={0.67} />
     </g>
   );
 }

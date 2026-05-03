@@ -1,12 +1,12 @@
-import { STAR, ORBITS, type OrbitKey } from './layout';
+import { ORBITS, orbitFocus, type OrbitKey } from './layout';
 import { ellipseCenterFromLeftFocus } from '../../lib/geometry';
 
 const RY_RATIO = 0.347;
 
 export function Orbit({ which }: { which: OrbitKey }) {
   const { a, e } = ORBITS[which];
-  const c = ellipseCenterFromLeftFocus(STAR, a, e);
-  const opacity = which === 'inner' ? 0.08 : which === 'middle' ? 0.06 : 0.05;
+  const c = ellipseCenterFromLeftFocus(orbitFocus(which), a, e);
+  const opacity = which === 'inner' ? 0.08 : which === 'middle' ? 0.06 : which === 'outer' ? 0.05 : 0.045;
   return (
     <ellipse
       cx={c.x} cy={c.y} rx={a} ry={a * RY_RATIO}

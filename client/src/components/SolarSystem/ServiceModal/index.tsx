@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import type { Service } from '@apseline/shared';
 import { useViewStore } from '../../../stores/viewStore';
 import { findNode } from '../layout';
@@ -44,6 +44,7 @@ export function ServiceModal({ nodeId, serviceId, services }: ServiceModalProps)
   const closeService = useViewStore((s) => s.closeService);
   const node = findNode(nodeId);
   const service = services.find((s) => s.name === serviceId);
+  const frameRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeService(); };
@@ -51,11 +52,27 @@ export function ServiceModal({ nodeId, serviceId, services }: ServiceModalProps)
     return () => window.removeEventListener('keydown', onKey);
   }, [closeService]);
 
+  // Click outside the modal closes it. Defer attachment so the click that
+  // opened the modal doesn't immediately close it.
+  useEffect(() => {
+    let cleanup: (() => void) | null = null;
+    const t = setTimeout(() => {
+      const onClick = (e: MouseEvent) => {
+        if (frameRef.current && !frameRef.current.contains(e.target as Node)) {
+          closeService();
+        }
+      };
+      document.addEventListener('mousedown', onClick);
+      cleanup = () => document.removeEventListener('mousedown', onClick);
+    }, 0);
+    return () => { clearTimeout(t); cleanup?.(); };
+  }, [closeService, serviceId]);
+
   if (!node || !service) return null;
 
   return (
     <div style={modalShellStyle}>
-      <div style={{ ...modalFrameStyle, borderColor: `var(--${node.colorVar})` }}>
+      <div ref={frameRef} style={{ ...modalFrameStyle, borderColor: `var(--${node.colorVar})` }}>
         <div style={modalHeaderStyle}>
           <div style={{ fontSize: 9, letterSpacing: 1.5, color: `var(--${node.colorVar})` }}>
             {node.label} ▸ SVC ▸ {service.name.toUpperCase()}
