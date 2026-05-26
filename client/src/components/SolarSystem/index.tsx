@@ -15,6 +15,9 @@ import { UtilityDock, type UtilityItemId } from './Chrome/UtilityDock';
 import { ServiceModal } from './ServiceModal';
 import { SatelliteHighlight } from './ServiceModal/SatelliteHighlight';
 import { SettingsPanel } from './Settings/SettingsPanel';
+import { AlertsPanel } from './Chrome/AlertsPanel';
+import { LogsPanel } from './Chrome/LogsPanel';
+import { DiscoveryPanel } from './Chrome/DiscoveryPanel';
 import { NODES, VIEWBOX_W, VIEWBOX_H, findNode } from './layout';
 import { ZOOM_IN_DURATION_MS, SWOOP_DURATION_MS, SATELLITE_FADE_MS } from '../../lib/transitions';
 
@@ -68,9 +71,15 @@ function useSatelliteFade(view: View) {
 export function SolarSystem() {
   const { view, transitionId, navigate, openService } = useViewStore();
   const services = useServicesStore((s) => s.services);
+  const health = useServicesStore((s) => s.health);
   const satOpacity = useSatelliteFade(view);
   const focusArrived = useFocusArrived(view);
   const [openPanel, setOpenPanel] = useState<UtilityItemId | null>(null);
+
+  // Alert count = anything not "up" or "unknown" in the health map.
+  const alertCount = Object.values(health).filter(
+    (h) => h.state === 'down' || h.state === 'degraded',
+  ).length;
 
   const activeNodeId = view.kind === 'planet' || view.kind === 'service' ? view.nodeId : null;
   const activeNode = activeNodeId ? findNode(activeNodeId) : null;
@@ -143,8 +152,8 @@ export function SolarSystem() {
 
         <Brackets />
         <Header view={view} />
-        <Telemetry serviceCount={services.length} />
-        <UtilityDock alertCount={0} onItem={(id) => setOpenPanel(id)} />
+        <Telemetry />
+        <UtilityDock alertCount={alertCount} onItem={(id) => setOpenPanel(id)} />
 
       </svg>
 
@@ -152,6 +161,9 @@ export function SolarSystem() {
         <ServiceModal nodeId={view.nodeId} serviceId={view.serviceId} services={services} />
       )}
       <SettingsPanel open={openPanel === 'settings'} onClose={() => setOpenPanel(null)} />
+      <AlertsPanel open={openPanel === 'alerts'} onClose={() => setOpenPanel(null)} />
+      <LogsPanel open={openPanel === 'logs'} onClose={() => setOpenPanel(null)} />
+      <DiscoveryPanel open={openPanel === 'discovery'} onClose={() => setOpenPanel(null)} />
     </div>
   );
 }

@@ -32,13 +32,13 @@ export function Star() {
         x={STAR.x}
         y={STAR.y + RADIUS + 16}
         textAnchor="middle"
-        fontSize={13}
+        fontSize={12}
         fontFamily="ui-monospace, Menlo, monospace"
-        letterSpacing={4}
+        letterSpacing={3}
         fill={STROKE}
         fillOpacity={0.9}
       >
-        Ƨ◯∪PПΞ⊤
+        APSΞLIΠΞ
       </text>
       <text
         x={STAR.x}
@@ -46,7 +46,7 @@ export function Star() {
         textAnchor="middle"
         fontSize={6}
         fontFamily="ui-monospace, Menlo, monospace"
-        letterSpacing={3}
+        letterSpacing={2}
         fill={STROKE}
         fillOpacity={0.4}
       >

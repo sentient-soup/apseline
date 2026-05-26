@@ -4,15 +4,20 @@ import { SolarSystem } from './components/SolarSystem';
 import { OrbitalBackground } from './components/OrbitalBackground';
 
 function App() {
-  const { fetchConfig, fetchServices, fetchDiscoveryStatus, connectSocket, activeInfra } = useServicesStore();
+  const {
+    fetchConfig, fetchServices, fetchDiscoveryStatus,
+    fetchMetrics, fetchHealth, connectSocket, activeInfra,
+  } = useServicesStore();
 
   useEffect(() => {
     fetchConfig();
     fetchServices();
     fetchDiscoveryStatus();
+    fetchMetrics();
+    fetchHealth();
     const disconnect = connectSocket();
     return disconnect;
-  }, [fetchConfig, fetchServices, fetchDiscoveryStatus, connectSocket]);
+  }, [fetchConfig, fetchServices, fetchDiscoveryStatus, fetchMetrics, fetchHealth, connectSocket]);
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--color-bg)' }}>

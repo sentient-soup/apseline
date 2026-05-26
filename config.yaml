@@ -1,85 +1,129 @@
 dashboard:
-  title: "Apseline Command Center"
-  refreshInterval: 30 # seconds
+  title: "Apseline"
+  refreshInterval: 30 # seconds — drives both metrics aggregator and discovery cache
 
+# ── Physical nodes per planet ─────────────────────────────────────────────
+# Hostnames should resolve over the tailnet (MagicDNS).
+# `host:port` is also the VictoriaMetrics `instance` label used for queries.
+nodes:
+  perihelion:
+    machines:
+      - { id: phis4, host: phis4.perihelion.live, role: primary }
+      - { id: phis1, host: phis1.perihelion.live, role: cluster }
+      - { id: phis2, host: phis2.perihelion.live, role: cluster }
+      - { id: phis3, host: phis3.perihelion.live, role: cluster }
+  aphelion:
+    # ahis1 (Hetzner VPS) pushes via vmagent — `host` here must match the
+    # `instance` label vmagent rewrites to (see docs/TELEMETRY.md §5).
+    # It is NOT a network address the dashboard contacts directly.
+    machines:
+      - { id: ahis1, host: ahis1.aphelion.live, role: primary }
+
+# ── Integrations ──────────────────────────────────────────────────────────
 integrations:
+  # Single TSDB hosted on the perihelion baremetal node.
+  victoriametrics:
+    enabled: true
+    url: "http://phis4.perihelion.live:8428"   # or set VM_URL in .env
+
+  # Cloudflare GraphQL Analytics. Token via env: CLOUDFLARE_API_TOKEN
+  cloudflare:
+    enabled: true
+    zones: []   # leave empty to auto-include every zone the token can see
+
+  # nginx integration. See docs/TELEMETRY.md §7 for the two deployment modes.
+  #
+  # Discovery:
+  #   - Baremetal nginx → set `configDir` to a directory of .conf vhost files.
+  #   - nginx in k8s    → leave `configDir` unset; the kubernetes integration
+  #                       already discovers vhosts from Ingress objects.
+  #
+  # Metrics: `stub_status` location served on existing nginx ports, fronted
+  # by an internal-only hostname (no public DNS).
+  nginx:
+    enabled: true
+    # configDir: "/etc/nginx/conf.d"
+    statusUrl: "http://nginx.perihelion.live/nginx_status"
+    infrastructure: "perihelion"
+
+  # Cloud-provider stubs. Door open for additional providers.
+  cloud:
+    gce:
+      enabled: false
+      project: ""
+
+  # Active HTTP probing of every discovered service.
+  health:
+    enabled: true
+    intervalSeconds: 30
+    timeoutMs: 5000
+
+  # Service-discovery integrations (kept from previous setup).
   kubernetes:
     enabled: false
     autoDiscover: false
-    # kubeconfig: "/path/to/kubeconfig" # Optional, uses default if not set
-    # context: "my-cluster" # Optional
 
   docker:
     enabled: false
     autoDiscover: false
     socketPath: "/var/run/docker.sock"
-    # For remote Docker:
-    # host: "192.168.1.100"
-    # port: 2375
 
-  prometheus:
-    enabled: false
-    url: "http://prometheus.local:9090"
-
-  host:
-    enabled: false
-
-# Manual service definitions (Homelab)
+# ── Manual service definitions (Homelab) ──────────────────────────────────
 perihelion:
   - name: "Rancher"
-    url: "https://rancher.local"
+    url: "https://rancher.perihelion.live"
     category: "Infrastructure"
 
   - name: "Pi-hole"
-    url: "http://pihole.local/admin"
+    url: "http://pihole.perihelion.live/admin"
     category: "Network"
 
   - name: "Nextcloud"
-    url: "https://nextcloud.local"
+    url: "https://docs.perihelion.live"
     category: "Productivity"
 
   - name: "Jellyfin"
-    url: "http://jellyfin.local:8096"
+    url: "https://media.perihelion.live"
     category: "Media"
 
   - name: "Immich"
-    url: "http://immich.local:2283"
+    url: "https://img.perihelion.live"
     category: "Photos"
 
-# Manual service definitions (Cloud)
+# ── Manual service definitions (Cloud) ────────────────────────────────────
 aphelion:
   - name: "Portfolio"
-    url: "https://PLACEHOLDER.com"
+    url: "https://aphelion.live"
     category: "Personal"
 
   - name: "Foundry VTT"
-    url: "https://PLACEHOLDER.com"
+    url: "https://aphelion.live/dnd"
     category: "Gaming"
 
   - name: "Factorio"
-    url: "https://PLACEHOLDER.com"
+    url: "aphelion.live:34197"
     category: "Gaming"
 
   - name: "Copy Party"
-    url: "https://PLACEHOLDER.com"
+    url: "https://aphelion.live/cpp"
     category: "File Sharing"
 
   - name: "Fiberwave"
-    url: "https://PLACEHOLDER.com"
+    url: "https://aphelion.live/projects/fiberwave"
     category: "Archive"
 
   - name: "Disregard That"
-    url: "https://PLACEHOLDER.com"
+    url: "https://disregard.aphelion.live/"
     category: "Archive"
 
   - name: "Disregard That Podcast"
-    url: "https://PLACEHOLDER.com"
+    url: "https://aphelion.live/projects/disregard-that-podcast"
     category: "Archive"
 
   - name: "Slaughter House"
-    url: "https://PLACEHOLDER.com"
+    url: "https://aphelion.live/projects/slaughter-house"
     category: "Archive"
 
   - name: "Net Runner"
-    url: "https://PLACEHOLDER.com"
+    url: "https://aphelion.live/projects/net-runner"
     category: "Archive"

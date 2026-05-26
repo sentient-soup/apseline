@@ -1,22 +1,64 @@
 import { useEffect, useState } from 'react';
 import { useViewStore, type View } from '../../../stores/viewStore';
+import { useServicesStore } from '../../../stores/servicesStore';
 import { findNode, NODES, VIEWBOX_W } from '../layout';
+import type { AllMetrics, HealthMap } from '@apseline/shared';
+import { fmtPct, fmtUptime } from '../../../lib/format';
 
 function fmtClock(d: Date) {
   const z = (n: number) => n.toString().padStart(2, '0');
   return `${z(d.getUTCHours())}:${z(d.getUTCMinutes())}:${z(d.getUTCSeconds())}Z`;
 }
 
-function headerLines(view: View): { primary: string; secondary: string } {
+function healthStatusLabel(health: HealthMap, total: number): string {
+  if (total === 0) return '—';
+  const states = Object.values(health);
+  if (states.length === 0) return 'PROBING';
+  const down = states.filter((h) => h.state === 'down').length;
+  const degraded = states.filter((h) => h.state === 'degraded').length;
+  if (down > 0) return `${down} DOWN`;
+  if (degraded > 0) return `${degraded} DEGRADED`;
+  return 'OK';
+}
+
+function headerLines(view: View, metrics: AllMetrics | null, svcCount: number, health: HealthMap): { primary: string; secondary: string } {
   if (view.kind === 'system') {
-    return { primary: 'APSELINE ▸ SYSTEM', secondary: 'NODES: 4 / SVCS: — / OK' };
+    const totalUp = (metrics?.perihelion?.aggregate.machinesUp ?? 0) + (metrics?.aphelion?.aggregate.machinesUp ?? 0);
+    const totalNodes = (metrics?.perihelion?.aggregate.machinesTotal ?? 0) + (metrics?.aphelion?.aggregate.machinesTotal ?? 0);
+    const nodes = totalNodes > 0 ? `${totalUp}/${totalNodes}` : `${NODES.length}`;
+    return {
+      primary: 'APSΞLIΠΞ ▸ SYSTEM',
+      secondary: `NODES ${nodes} · SVCS ${svcCount} · ${healthStatusLabel(health, svcCount)}`,
+    };
   }
+
   const node = findNode(view.nodeId);
-  return { primary: `${node?.label ?? '—'} ▸ NODE`, secondary: 'CPU — · MEM — · UP —' };
+  const nodeTag = node?.kind === 'outer' ? 'EDGE' : 'NODE';
+  const planet = view.nodeId === 'perihelion' ? metrics?.perihelion
+               : view.nodeId === 'aphelion'   ? metrics?.aphelion
+               : undefined;
+
+  if (!planet) {
+    return { primary: `${node?.label ?? '—'} ▸ ${nodeTag}`, secondary: 'CPU — · MEM — · UP —' };
+  }
+
+  // Pick the longest-running machine on this planet for "UP" — most representative.
+  const longestUp = planet.machines
+    .map((m) => m.uptimeSeconds)
+    .filter((s): s is number => typeof s === 'number')
+    .reduce((a, b) => (a !== undefined && a > b ? a : b), undefined as number | undefined);
+
+  return {
+    primary: `${node?.label ?? '—'} ▸ ${nodeTag}`,
+    secondary: `CPU ${fmtPct(planet.aggregate.cpuPct)} · MEM ${fmtPct(planet.aggregate.memPct)} · UP ${fmtUptime(longestUp)}`,
+  };
 }
 
 export function Header({ view }: { view: View }) {
   const navigate = useViewStore((s) => s.navigate);
+  const metrics = useServicesStore((s) => s.metrics);
+  const services = useServicesStore((s) => s.services);
+  const health = useServicesStore((s) => s.health);
   const [now, setNow] = useState(() => new Date());
   const [open, setOpen] = useState(false);
 
@@ -25,7 +67,6 @@ export function Header({ view }: { view: View }) {
     return () => clearInterval(i);
   }, []);
 
-  // Outside-click to close. Defer attachment so the opening click doesn't immediately close.
   useEffect(() => {
     if (!open) return;
     let cleanup: (() => void) | null = null;
@@ -40,24 +81,23 @@ export function Header({ view }: { view: View }) {
     };
   }, [open]);
 
-  const { primary, secondary } = headerLines(view);
+  const { primary, secondary } = headerLines(view, metrics, services.length, health);
   const isOnPlanet = view.kind === 'planet' || view.kind === 'service';
   const accentVar = isOnPlanet ? findNode(view.nodeId)?.colorVar ?? 'color-perihelion' : null;
-  const accent = accentVar ? `var(--${accentVar})` : 'rgba(160,145,214,0.85)';
+  const accent = accentVar ? `var(--${accentVar})` : 'var(--color-star)';
 
-  // Dropdown contents: SYSTEM (if on a planet) plus other planets (if on a planet, exclude current).
   const currentId = isOnPlanet ? view.nodeId : null;
   const dropdownEntries: { label: string; onSelect: () => void; color: string }[] = [];
   if (isOnPlanet) {
     dropdownEntries.push({
-      label: 'APSELINE ▸ SYSTEM',
-      color: 'rgba(160,145,214,0.85)',
+      label: 'APSΞLIΠΞ ▸ SYSTEM',
+      color: 'var(--color-star)',
       onSelect: () => navigate({ kind: 'system' }),
     });
   }
   NODES.filter((n) => n.id !== currentId).forEach((n) => {
     dropdownEntries.push({
-      label: `${n.label} ▸ NODE`,
+      label: `${n.label} ▸ ${n.kind === 'outer' ? 'EDGE' : 'NODE'}`,
       color: `var(--${n.colorVar})`,
       onSelect: () => navigate({ kind: 'planet', nodeId: n.id }),
     });

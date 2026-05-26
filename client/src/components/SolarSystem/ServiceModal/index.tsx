@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react';
 import type { Service } from '@apseline/shared';
 import { useViewStore } from '../../../stores/viewStore';
+import { useServicesStore } from '../../../stores/servicesStore';
 import { findNode } from '../layout';
+import { fmtLatency, fmtRelTime } from '../../../lib/format';
 
 interface ServiceModalProps {
   nodeId: string;
@@ -42,8 +44,10 @@ const ghostBtn: React.CSSProperties = {
 
 export function ServiceModal({ nodeId, serviceId, services }: ServiceModalProps) {
   const closeService = useViewStore((s) => s.closeService);
+  const healthMap = useServicesStore((s) => s.health);
   const node = findNode(nodeId);
   const service = services.find((s) => s.name === serviceId);
+  const health = service ? healthMap[service.name] : undefined;
   const frameRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -85,7 +89,10 @@ export function ServiceModal({ nodeId, serviceId, services }: ServiceModalProps)
           </div>
         </div>
         <div style={modalBodyStyle}>
-          <Row label="STATUS" value={service.status ?? 'unknown'} />
+          <Row label="STATUS" value={(health?.state ?? service.status ?? 'unknown').toUpperCase()} />
+          <Row label="LATENCY" value={fmtLatency(health?.latencyMs)} />
+          <Row label="HTTP" value={health?.statusCode ? String(health.statusCode) : '—'} />
+          <Row label="LAST CHECK" value={fmtRelTime(health?.lastChecked)} />
           <Row label="HOST" value={hostnameOf(service.url)} />
           <Row label="SOURCE" value={service.source ?? 'manual'} />
           <Row label="CATEGORY" value={service.category ?? '—'} />

@@ -22,6 +22,7 @@ export function loadConfig(): DashboardConfig {
       title: config.dashboard?.title || 'Apseline',
       refreshInterval: config.dashboard?.refreshInterval || 30,
       integrations: config.integrations || {},
+      nodes: config.nodes || undefined,
       perihelion: (config.perihelion || []).map((service: any) => ({
         ...service,
         infrastructure: 'perihelion' as const,

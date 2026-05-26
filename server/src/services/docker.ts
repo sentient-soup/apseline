@@ -1,5 +1,12 @@
 import Docker from 'dockerode';
-import type { Service, DockerMetrics } from '@apseline/shared';
+import type { Service } from '@apseline/shared';
+
+interface DockerMetrics {
+  containers: { running: number; total: number };
+  images: number;
+  volumes: number;
+  networks: number;
+}
 
 interface DockerDiscoveryConfig {
   socketPath?: string;
