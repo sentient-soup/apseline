@@ -1,12 +1,11 @@
 import { useEffect } from 'react';
 import { useServicesStore } from './stores/servicesStore';
-import { SolarSystem } from './components/SolarSystem';
-import { OrbitalBackground } from './components/OrbitalBackground';
+import { Pulse } from './components/Pulse';
 
 function App() {
   const {
     fetchConfig, fetchServices, fetchDiscoveryStatus,
-    fetchMetrics, fetchHealth, connectSocket, activeInfra,
+    fetchMetrics, fetchHealth, connectSocket,
   } = useServicesStore();
 
   useEffect(() => {
@@ -19,14 +18,7 @@ function App() {
     return disconnect;
   }, [fetchConfig, fetchServices, fetchDiscoveryStatus, fetchMetrics, fetchHealth, connectSocket]);
 
-  return (
-    <div style={{ minHeight: '100vh', background: 'var(--color-bg)' }}>
-      <OrbitalBackground infrastructure={activeInfra} />
-      <div style={{ position: 'relative', zIndex: 1 }}>
-        <SolarSystem />
-      </div>
-    </div>
-  );
+  return <Pulse />;
 }
 
 export default App;

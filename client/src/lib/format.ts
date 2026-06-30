@@ -40,6 +40,15 @@ export function fmtLatency(ms: number | undefined): string {
   return `${Math.round(ms)}ms`;
 }
 
+/** Compact count, e.g. 1200000 -> "1.2M". */
+export function fmtCount(n: number | undefined): string {
+  if (n === undefined || !Number.isFinite(n)) return '—';
+  if (n >= 1e9) return `${(n / 1e9).toFixed(1)}B`;
+  if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
+  if (n >= 1e3) return `${(n / 1e3).toFixed(0)}K`;
+  return String(Math.round(n));
+}
+
 export function fmtRelTime(epochMs: number | undefined): string {
   if (!epochMs) return '—';
   const diff = Date.now() - epochMs;
