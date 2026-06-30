@@ -1,6 +1,8 @@
 import './services/logger'; // must be first — patches console before anything else logs
 import 'dotenv/config';
 import express from 'express';
+import path from 'path';
+import fs from 'fs';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
@@ -129,6 +131,17 @@ async function main() {
     const m = await vm.getPlanetMetrics(planet, machines);
     res.json(m);
   });
+
+  // ── Static client (production) ──────────────────────────────────────────
+  // In dev the client runs on Vite; in the container we serve the built SPA.
+  const clientDist = process.env.CLIENT_DIST || path.resolve(__dirname, '../../client/dist');
+  if (fs.existsSync(clientDist)) {
+    app.use(express.static(clientDist));
+    app.get('*', (req, res, next) => {
+      if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) return next();
+      res.sendFile(path.join(clientDist, 'index.html'));
+    });
+  }
 
   // ── HTTP + WebSocket ────────────────────────────────────────────────────
   const httpServer = createServer(app);
