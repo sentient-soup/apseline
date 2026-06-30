@@ -8,10 +8,10 @@ dashboard:
 nodes:
   perihelion:
     machines:
+      - { id: phis1, host: phis1.perihelion.live, role: k8s }
       - { id: phis4, host: phis4.perihelion.live, role: primary }
-      - { id: phis1, host: phis1.perihelion.live, role: cluster }
-      - { id: phis2, host: phis2.perihelion.live, role: cluster }
-      - { id: phis3, host: phis3.perihelion.live, role: cluster }
+      # - { id: phis2, host: phis2.perihelion.live, role: cluster }
+      # - { id: phis3, host: phis3.perihelion.live, role: cluster }
   aphelion:
     # ahis1 (Hetzner VPS) pushes via vmagent — `host` here must match the
     # `instance` label vmagent rewrites to (see docs/TELEMETRY.md §5).
@@ -41,7 +41,7 @@ integrations:
   # Metrics: `stub_status` location served on existing nginx ports, fronted
   # by an internal-only hostname (no public DNS).
   nginx:
-    enabled: true
+    enabled: false
     # configDir: "/etc/nginx/conf.d"
     statusUrl: "http://nginx.perihelion.live/nginx_status"
     infrastructure: "perihelion"
@@ -70,13 +70,13 @@ integrations:
 
 # ── Manual service definitions (Homelab) ──────────────────────────────────
 perihelion:
-  - name: "Rancher"
-    url: "https://rancher.perihelion.live"
-    category: "Infrastructure"
+  - name: "Headlamp"
+    url: "https://headlamp.perihelion.live"
+    category: "Infra"
 
   - name: "Pi-hole"
     url: "http://pihole.perihelion.live/admin"
-    category: "Network"
+    category: "Infra"
 
   - name: "Nextcloud"
     url: "https://docs.perihelion.live"
@@ -89,6 +89,56 @@ perihelion:
   - name: "Immich"
     url: "https://img.perihelion.live"
     category: "Photos"
+
+  - name: "Audiobookshelf"
+    url: "https://books.perihelion.live"
+    category: "Media"
+
+  - name: "Cadence"
+    url: "https://cadence.perihelion.live"
+    category: "Productivity"
+
+  - name: "Sink"
+    url: "https://sink.perihelion.live"
+    category: "Productivity"
+
+  - name: "Copy Party"
+    url: "https://cpp.perihelion.live"
+    category: "Infra"
+
+  - name: "Jellyseerr"
+    url: "https://request.perihelion.live"
+    category: "Media"
+
+  - name: "Odysseus"
+    url: "https://odysseus.perihelion.live"
+    category: "Productivity"
+
+  - name: "Prowlarr"
+    url: "https://prowlarr.perihelion.live"
+    category: "Infra"
+
+  - name: "Radarr"
+    url: "https://radarr.perihelion.live"
+    category: "Infra"
+
+  - name: "Sonarr"
+    url: "https://sonarr.perihelion.live"
+    category: "Infra"
+
+  - name: "Lidarr"
+    url: "https://lidarr.perihelion.live"
+    category: "Infra"
+
+  - name: "Readarr (Bookshelf)"
+    url: "https://readarr.perihelion.live"
+    category: "Infra"
+
+  - name: "QBittorrent"
+    url: "https://torrent.perihelion.live"
+    category: "Infra"
+
+
 
 # ── Manual service definitions (Cloud) ────────────────────────────────────
 aphelion:
