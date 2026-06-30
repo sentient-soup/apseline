@@ -1,0 +1,12 @@
+**/node_modules
+**/dist
+.git
+.github
+.claude
+.superpowers
+mockups
+docs
+*.log
+.env
+.env.local
+.DS_Store
