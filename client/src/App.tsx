@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useServicesStore } from './stores/servicesStore';
-import { Pulse } from './components/Pulse';
+import { Tacnav } from './components/Tacnav';
 
 function App() {
   const {
@@ -18,7 +18,7 @@ function App() {
     return disconnect;
   }, [fetchConfig, fetchServices, fetchDiscoveryStatus, fetchMetrics, fetchHealth, connectSocket]);
 
-  return <Pulse />;
+  return <Tacnav />;
 }
 
 export default App;

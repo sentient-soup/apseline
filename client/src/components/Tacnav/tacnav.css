@@ -1,0 +1,192 @@
+/* TACNAV: tactical mission-control HUD. Scoped under .tacnav-root so the
+   legacy palette vars and parked components stay untouched. */
+
+.tacnav-root {
+  --bg: #04080a;
+  --ink: #a8e6da;
+  --dim: #4e7a72;
+  --faint: #1c3833;
+  /* gridlines are deliberately a different hue (blue-slate) than the teal
+     orbit/ring lines so the two families of circles read apart */
+  --grid: #121d2c;
+  --grid-ink: #26405f;
+  --orbit: #24473e;
+  --peri: #ffb45e;
+  --aphe: #7cc4ff;
+  --up: #63e6b4;
+  --warn: #ffd23a;
+  --down: #ff4b57;
+  --cf: #b3a06a;
+  --mono: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+
+  position: fixed;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(10, 20, 18, .35) 0%, transparent 12%, transparent 88%, rgba(10, 20, 18, .35) 100%),
+    var(--bg);
+  font-family: var(--mono);
+  color: var(--ink);
+  user-select: none;
+  -webkit-user-select: none;
+  overflow: hidden;
+}
+@media (pointer: fine) {
+  .tacnav-root, .tacnav-root * { cursor: none; }
+}
+
+.tacnav-root #stage { position: absolute; inset: 0; }
+.tacnav-root .scene { position: absolute; inset: 0; }
+.tacnav-root .scene svg { width: 100%; height: 100%; display: block; }
+
+/* ---------- crosshair cursor ---------- */
+.tacnav-root #xhair {
+  position: fixed; z-index: 100; left: 0; top: 0; width: 48px; height: 48px;
+  margin: -24px 0 0 -24px; pointer-events: none; display: none;
+}
+@media (pointer: fine) { .tacnav-root #xhair { display: block; } }
+.tacnav-root #xhair svg { width: 100%; height: 100%; overflow: visible; }
+.tacnav-root #xhair .xring { transition: transform .18s cubic-bezier(.2, .8, .3, 1), opacity .18s; transform-origin: center; }
+.tacnav-root #xhair .xcorner { transition: transform .18s cubic-bezier(.2, .8, .3, 1); transform-origin: center; opacity: 0; }
+.tacnav-root #xhair.lock .xring { transform: scale(.55); opacity: 0; }
+.tacnav-root #xhair.lock .xcorner { opacity: 1; }
+.tacnav-root #xhair.lock .xc0 { transform: translate(-4px, -4px); }
+.tacnav-root #xhair.lock .xc1 { transform: translate(4px, -4px); }
+.tacnav-root #xhair.lock .xc2 { transform: translate(4px, 4px); }
+.tacnav-root #xhair.lock .xc3 { transform: translate(-4px, 4px); }
+.tacnav-root #xco {
+  position: fixed; z-index: 100; pointer-events: none; font-size: 8px;
+  letter-spacing: .14em; color: var(--dim); white-space: pre; display: none;
+}
+@media (pointer: fine) { .tacnav-root #xco { display: block; } }
+.tacnav-root #xco.lock { color: var(--ink); }
+/* hidden until the pointer first moves, so they never sit at 0,0 */
+.tacnav-root #xhair, .tacnav-root #xco { opacity: 0; }
+.tacnav-root.aimed #xhair, .tacnav-root.aimed #xco { opacity: 1; }
+
+/* ---------- HUD chrome ---------- */
+.tacnav-root .hud { position: absolute; z-index: 10; font-size: 11px; letter-spacing: .14em; }
+.tacnav-root #hudTL { top: 16px; left: 20px; }
+.tacnav-root #brand { font-size: 12.5px; letter-spacing: .34em; color: var(--ink); }
+.tacnav-root #brand b { font-weight: 400; color: var(--dim); }
+.tacnav-root #crumb { color: var(--warn); letter-spacing: .24em; }
+.tacnav-root #verdict { margin-top: 6px; color: var(--up); letter-spacing: .2em; font-size: 10px; }
+.tacnav-root.incident #verdict { color: var(--warn); }
+.tacnav-root #subline { margin-top: 4px; color: var(--dim); font-size: 9.5px; }
+.tacnav-root #backBtn {
+  margin-top: 9px; display: none; color: var(--dim); font-size: 9.5px; letter-spacing: .24em;
+  border: 1px solid var(--faint); padding: 3px 8px; width: max-content;
+}
+.tacnav-root #backBtn:hover { color: var(--ink); border-color: var(--dim); }
+.tacnav-root.in-planet #backBtn { display: block; }
+.tacnav-root #hudTR { top: 16px; right: 20px; text-align: right; color: var(--dim); font-size: 10px; line-height: 1.8; }
+.tacnav-root #hudTR .t { color: var(--ink); font-size: 12px; letter-spacing: .22em; }
+.tacnav-root #hudBL { bottom: 14px; left: 20px; color: var(--dim); font-size: 9.5px; line-height: 1.8; }
+.tacnav-root #hudBR { bottom: 14px; right: 20px; display: flex; gap: 14px; align-items: center; font-size: 9.5px; }
+.tacnav-root .dock { color: var(--dim); letter-spacing: .14em; padding: 3px 2px; }
+.tacnav-root .dock:hover { color: var(--ink); }
+.tacnav-root .dock::before { content: "■ "; font-size: 6px; vertical-align: 2px; color: var(--faint); }
+.tacnav-root .dock.d-al::before { color: var(--down); }
+.tacnav-root #ruler {
+  position: absolute; z-index: 9; top: 9px; left: 32%; right: 32%; height: 5px; pointer-events: none;
+  background: repeating-linear-gradient(90deg, var(--faint) 0 1px, transparent 1px 14px); opacity: .8;
+}
+.tacnav-root #ruler::after { content: ""; position: absolute; left: 50%; top: 0; width: 1px; height: 9px; background: var(--dim); }
+.tacnav-root .frame { position: absolute; z-index: 9; width: 22px; height: 22px; pointer-events: none; opacity: .6; }
+.tacnav-root #fTL { top: 8px; left: 10px; border-top: 1px solid var(--dim); border-left: 1px solid var(--dim); }
+.tacnav-root #fTR { top: 8px; right: 10px; border-top: 1px solid var(--dim); border-right: 1px solid var(--dim); }
+.tacnav-root #fBL { bottom: 8px; left: 10px; border-bottom: 1px solid var(--dim); border-left: 1px solid var(--dim); }
+.tacnav-root #fBR { bottom: 8px; right: 10px; border-bottom: 1px solid var(--dim); border-right: 1px solid var(--dim); }
+.tacnav-root.incident .frame { border-color: var(--warn); opacity: .9; }
+
+/* ---------- master caution ---------- */
+.tacnav-root #caution {
+  position: absolute; z-index: 15; top: 42px; left: 50%; transform: translateX(-50%); display: none;
+  border: 1px solid var(--warn); color: var(--warn); background: rgba(20, 14, 2, .8);
+  font-size: 10px; letter-spacing: .3em; padding: 6px 14px; animation: tacnav-blink 1.3s step-end infinite;
+}
+.tacnav-root.incident #caution { display: block; }
+@keyframes tacnav-blink { 50% { opacity: .35; } }
+
+/* ---------- target plate ---------- */
+.tacnav-root #tgt {
+  position: absolute; z-index: 12; left: 50%; bottom: 52px; transform: translateX(-50%);
+  min-width: 300px; text-align: center; border: 1px solid var(--faint); background: rgba(5, 12, 11, .82);
+  font-size: 10px; letter-spacing: .18em; padding: 8px 16px; color: var(--dim);
+}
+.tacnav-root #tgt .t-name { color: var(--ink); font-size: 11.5px; letter-spacing: .26em; }
+.tacnav-root #tgt .t-up { color: var(--up); }
+.tacnav-root #tgt .t-warn { color: var(--warn); }
+.tacnav-root #tgt .t-down { color: var(--down); }
+.tacnav-root #tgt .t-row { margin-top: 3px; font-size: 9px; }
+/* touch devices have no hover: the plate would only ever say NO TARGET */
+@media (pointer: coarse) { .tacnav-root #tgt { display: none; } }
+@media (max-width: 900px) {
+  .tacnav-root .d-set, .tacnav-root .d-log, .tacnav-root .d-dis { display: none; }
+  .tacnav-root #hudBL { font-size: 8.5px; }
+}
+
+/* ---------- toast + alert register ---------- */
+.tacnav-root #toast {
+  position: absolute; z-index: 30; left: 50%; bottom: 96px; transform: translateX(-50%) translateY(6px);
+  background: rgba(5, 12, 11, .94); border: 1px solid var(--dim); padding: 8px 15px; font-size: 10.5px;
+  letter-spacing: .18em; color: var(--ink); opacity: 0; transition: opacity .2s, transform .2s; pointer-events: none;
+}
+.tacnav-root #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.tacnav-root #alertPanel {
+  position: absolute; z-index: 25; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  background: rgba(4, 10, 9, .97); border: 1px solid var(--faint); padding: 16px 22px; min-width: 300px;
+  font-size: 10.5px; letter-spacing: .14em; line-height: 2.2;
+}
+.tacnav-root #alertPanel h3 {
+  margin: 0 0 8px; font-size: 10px; color: var(--dim); letter-spacing: .34em; font-weight: 400;
+  border-bottom: 1px solid var(--faint); padding-bottom: 8px;
+}
+.tacnav-root #alertPanel .a-ok { color: var(--up); }
+.tacnav-root #alertPanel .a-warn { color: var(--warn); }
+.tacnav-root #alertPanel .a-down { color: var(--down); }
+.tacnav-root #alertPanel .a-close { margin-top: 10px; color: var(--faint); font-size: 8.5px; letter-spacing: .26em; }
+
+/* ---------- scene transitions ---------- */
+.tacnav-root .zoom-away { animation: tacnav-zoomAway .36s cubic-bezier(.5, 0, .8, .4) forwards; }
+@keyframes tacnav-zoomAway { to { transform: scale(2.4); opacity: 0; } }
+.tacnav-root .fade-up { animation: tacnav-fadeUp .4s cubic-bezier(.2, .7, .3, 1) .08s backwards; }
+@keyframes tacnav-fadeUp { from { transform: scale(.96); opacity: 0; } }
+.tacnav-root .recede { animation: tacnav-recede .32s cubic-bezier(.5, 0, .8, .4) forwards; }
+@keyframes tacnav-recede { to { transform: scale(.78); opacity: 0; } }
+.tacnav-root .fade-back { animation: tacnav-fadeBack .4s cubic-bezier(.2, .7, .3, 1) .06s backwards; }
+@keyframes tacnav-fadeBack { from { transform: scale(1.08); opacity: 0; } }
+
+/* ---------- svg ---------- */
+.tacnav-root svg * { transform-box: fill-box; }
+.tacnav-root .gridline { stroke: var(--grid); fill: none; }
+.tacnav-root .gridtext { fill: var(--grid-ink); font-family: var(--mono); letter-spacing: .2em; }
+.tacnav-root .orbitLine { fill: none; stroke: var(--orbit); stroke-width: 1; }
+.tacnav-root .ringLine { fill: none; stroke-width: .7; opacity: .35; }
+.tacnav-root .planetG .lockHint { transition: opacity .25s; opacity: 0; }
+.tacnav-root .planetG:hover .lockHint { opacity: 1; }
+.tacnav-root .corePulse { animation: tacnav-corebreathe 3.4s ease-in-out infinite; }
+@keyframes tacnav-corebreathe { 50% { opacity: .55; } }
+.tacnav-root .tickring { animation: tacnav-spin 110s linear infinite; transform-origin: center; }
+.tacnav-root .tickringB { animation: tacnav-spinB 160s linear infinite; transform-origin: center; }
+@keyframes tacnav-spin { to { transform: rotate(360deg); } }
+@keyframes tacnav-spinB { to { transform: rotate(-360deg); } }
+.tacnav-root .mote .diam { transition: transform .15s; transform-origin: center; }
+.tacnav-root .mote:hover .diam { transform: scale(1.9); }
+.tacnav-root .mote .df { fill: #0a1512; stroke: var(--up); stroke-width: 1.1; }
+.tacnav-root .mote.warn .df { stroke: var(--warn); animation: tacnav-blink 1.1s step-end infinite; }
+.tacnav-root .mote.unk .df { stroke: var(--dim); }
+.tacnav-root .mote.down .dx { stroke: var(--down); }
+.tacnav-root .moon .diam { transition: transform .15s; transform-origin: center; }
+.tacnav-root .moon:hover .diam { transform: scale(1.45); }
+.tacnav-root .moon:hover text { fill: var(--ink); }
+.tacnav-root .asteroid { transition: opacity .2s; }
+.tacnav-root .asteroid:hover { opacity: 1; }
+.tacnav-root .asteroid .rock { transition: transform .15s; transform-origin: center; }
+.tacnav-root .asteroid:hover .rock { transform: scale(1.25); }
+.tacnav-root .microlabel { letter-spacing: .22em; fill: var(--dim); font-family: var(--mono); }
+.tacnav-root .datatext { fill: var(--ink); font-family: var(--mono); letter-spacing: .12em; }
+.tacnav-root .dimtext { fill: var(--dim); font-family: var(--mono); letter-spacing: .16em; }
+.tacnav-root .fainttext { fill: var(--faint); font-family: var(--mono); letter-spacing: .2em; }
+.tacnav-root .cfText { fill: var(--cf); opacity: .9; font-family: var(--mono); letter-spacing: .3em; }
+.tacnav-root .stationDot { animation: tacnav-blink 3s step-end infinite; }
+.tacnav-root .scanMer { opacity: .5; }
