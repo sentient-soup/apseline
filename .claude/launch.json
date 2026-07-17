@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "apseline",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["dev:client"],
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "set PORT=3001&& pnpm dev"],
       "port": 5173
     }
   ]
