@@ -1,7 +1,11 @@
 # syntax=docker/dockerfile:1
 
 # ── Build stage: install, build shared+server+client, prune to prod bundle ──
-FROM node:22-alpine AS build
+# Pinned to BUILDPLATFORM so the build runs natively on the runner instead of
+# under QEMU. The output is portable JS (no compiled native addons), so the
+# same bundle is copied into every target arch below. Emulating this stage for
+# arm64 takes hours; natively it takes ~1 min.
+FROM --platform=$BUILDPLATFORM node:22-alpine AS build
 RUN corepack enable && corepack prepare pnpm@10.29.2 --activate
 WORKDIR /app
 
