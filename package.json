@@ -7,7 +7,8 @@
     "dev:client": "pnpm --filter @apseline/client dev",
     "dev:server": "pnpm --filter @apseline/server dev",
     "build": "pnpm --filter @apseline/shared build && pnpm --filter @apseline/server build && pnpm --filter @apseline/client build",
-    "start": "pnpm --filter @apseline/server start"
+    "start": "pnpm --filter @apseline/server start",
+    "check:telemetry": "node scripts/check-telemetry.mjs"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
