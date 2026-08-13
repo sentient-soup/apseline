@@ -65,7 +65,6 @@ export class DiscoveryService {
       this.k8s.isConnected() ? this.k8s.discoverServices('perihelion') : Promise.resolve([]),
       this.docker.isConnected() ? this.docker.discoverServices('perihelion') : Promise.resolve([]),
       this.nginx?.isConnected() ? Promise.resolve(this.nginx.discoverServices()) : Promise.resolve([]),
-      this.cloudflare?.isConnected() ? Promise.resolve(this.cloudflare.discoverServices()) : Promise.resolve([]),
       ...this.cloudProviders.map((p) =>
         p.isConnected() ? p.discoverServices('aphelion') : Promise.resolve([]),
       ),

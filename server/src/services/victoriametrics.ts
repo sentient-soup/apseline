@@ -16,6 +16,14 @@ interface VMQueryResp { status: 'success' | 'error'; data: { resultType: string;
 const DEFAULT_PORT = 9100;
 const QUERY_TIMEOUT_MS = 5000;
 
+/**
+ * Physical NICs only. Blacklisting virtual devices doesn't work: docker compose
+ * creates a `br-<hash>` bridge per project, and summing those alongside the real
+ * uplink counted phis4's traffic ~2.5x. Matches eth0/eno1/enp3s0/ens18/wlp2s0.
+ * ponytail: hardcoded pattern, move to config.yaml if a node ever uses bond/tun devices.
+ */
+const PHYSICAL_NIC = 'e(n|th)[a-z0-9]*|wl[a-z0-9]*';
+
 function instanceFor(m: NodeMachine): string {
   return `${m.host}:${m.port ?? DEFAULT_PORT}`;
 }
@@ -120,8 +128,8 @@ export class VictoriaMetricsService {
       this.query(`node_memory_MemAvailable_bytes${sel}`),
       this.query(`sum by (instance) (node_filesystem_size_bytes{instance=~"${instanceRegex}",fstype!~"tmpfs|overlay|squashfs",mountpoint="/"})`),
       this.query(`sum by (instance) (node_filesystem_avail_bytes{instance=~"${instanceRegex}",fstype!~"tmpfs|overlay|squashfs",mountpoint="/"})`),
-      this.query(`sum by (instance) (rate(node_network_receive_bytes_total{instance=~"${instanceRegex}",device!~"lo|docker.*|veth.*|cni.*|flannel.*"}[1m]))`),
-      this.query(`sum by (instance) (rate(node_network_transmit_bytes_total{instance=~"${instanceRegex}",device!~"lo|docker.*|veth.*|cni.*|flannel.*"}[1m]))`),
+      this.query(`sum by (instance) (rate(node_network_receive_bytes_total{instance=~"${instanceRegex}",device=~"${PHYSICAL_NIC}"}[1m]))`),
+      this.query(`sum by (instance) (rate(node_network_transmit_bytes_total{instance=~"${instanceRegex}",device=~"${PHYSICAL_NIC}"}[1m]))`),
       this.query(`node_time_seconds${sel} - node_boot_time_seconds${sel}`),
       this.query(`node_load1${sel}`),
     ]);

@@ -1,4 +1,4 @@
-import type { CloudflareMetrics, CloudflareZoneMetrics, Service } from '@apseline/shared';
+import type { CloudflareMetrics, CloudflareZoneMetrics } from '@apseline/shared';
 
 interface CloudflareConfig {
   token: string;
@@ -68,18 +68,10 @@ export class CloudflareService {
     };
   }
 
-  /** Each zone surfaces as a "service" so the planet can render satellites. */
-  discoverServices(): Service[] {
-    if (!this.connected) return [];
-    return this.zones.map<Service>((z) => ({
-      name: z.name,
-      url: `https://${z.name}`,
-      category: 'Cloudflare',
-      infrastructure: 'aphelion',
-      source: 'cloud',
-      labels: { provider: 'cloudflare', zoneId: z.id },
-    }));
-  }
+  // Zones are deliberately NOT discovered as services: they are DNS records, not
+  // things we host, so HTTP-probing them produced permanent false "down" alerts
+  // (and filed perihelion.live under aphelion). Zone data renders in the
+  // perimeter belt from getMetrics() instead.
 
   async getMetrics(): Promise<CloudflareMetrics | null> {
     if (!this.connected || this.zones.length === 0) return null;
@@ -87,11 +79,14 @@ export class CloudflareService {
     const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
     const until = new Date().toISOString();
 
+    // Hourly buckets, not daily: `httpRequests1dGroups` with a date range covers
+    // whole calendar days, so a "24h" window silently spanned up to 48h of traffic.
+    // Requesting no dimensions collapses the buckets into one total per zone.
     const query = `query ($zoneTags: [String!]!, $since: Time!, $until: Time!) {
       viewer {
         zones(filter: { zoneTag_in: $zoneTags }) {
           zoneTag
-          httpRequests1dGroups(limit: 1, filter: { date_geq: "${since.slice(0, 10)}", date_leq: "${until.slice(0, 10)}" }) {
+          httpRequests1hGroups(limit: 1, filter: { datetime_geq: $since, datetime_lt: $until }) {
             sum {
               requests
               cachedRequests
@@ -121,7 +116,7 @@ export class CloudflareService {
       const json: any = await res.json();
       const rows: any[] = json?.data?.viewer?.zones ?? [];
 
-      const byTag = new Map<string, any>(rows.map((r) => [r.zoneTag, r.httpRequests1dGroups?.[0]]));
+      const byTag = new Map<string, any>(rows.map((r) => [r.zoneTag, r.httpRequests1hGroups?.[0]]));
 
       const zoneMetrics: CloudflareZoneMetrics[] = this.zones.map((z) => {
         const g = byTag.get(z.id);

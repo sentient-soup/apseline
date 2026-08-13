@@ -38,13 +38,22 @@ export class HealthService {
   private async tick(): Promise<void> {
     const services = this.getServices();
     const results = await Promise.all(services.map((s) => this.probe(s)));
+    // Keyed by url, not name: "Copy Party" exists on both planets and the two
+    // entries were overwriting each other, so one showed the other's health.
     const next: HealthMap = {};
-    services.forEach((s, i) => { next[s.name] = results[i]; });
+    services.forEach((s, i) => { next[s.url] = results[i]; });
     this.map = next;
     this.onUpdate(next);
   }
 
   private async probe(s: Service): Promise<ServiceHealth> {
+    // Entries like "aphelion.live:34197" (Factorio, UDP) aren't fetchable. They
+    // were reported as `down` forever and raised a permanent false alert; a TCP
+    // connect doesn't help either since the port is UDP-only.
+    if (!/^https?:\/\//i.test(s.url)) {
+      return { state: 'unknown', lastChecked: Date.now(), error: 'not an http(s) url' };
+    }
+
     const start = Date.now();
     const timeoutMs = s.healthCheck?.timeoutMs ?? this.cfg.timeoutMs;
     const expectStatus = s.healthCheck?.expectStatus;
