@@ -117,6 +117,7 @@
 .tacnav-root #tgt .t-up { color: var(--up); }
 .tacnav-root #tgt .t-warn { color: var(--warn); }
 .tacnav-root #tgt .t-down { color: var(--down); }
+.tacnav-root #tgt .t-unk { color: var(--dim); }
 .tacnav-root #tgt .t-row { margin-top: 3px; font-size: 9px; }
 /* touch devices have no hover: the plate would only ever say NO TARGET */
 @media (pointer: coarse) { .tacnav-root #tgt { display: none; } }

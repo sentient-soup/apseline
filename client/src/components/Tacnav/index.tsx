@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import type { CloudflareMetrics, HealthState, MachineMetrics, PlanetMetrics } from '@apseline/shared';
 import { useServicesStore } from '../../stores/servicesStore';
-import { fmtBitsPerSec, fmtCount, fmtLatency, fmtPct, fmtRelTime, fmtUptime } from '../../lib/format';
+import { fmtBitsPerSec, fmtBytes, fmtCount, fmtLatency, fmtPct, fmtRelTime, fmtUptime } from '../../lib/format';
 import './tacnav.css';
 
 type Infra = 'perihelion' | 'aphelion';
@@ -48,8 +48,9 @@ function useDomainData(infra: Infra) {
     ?? (config?.nodes?.[infra]?.machines ?? []).map((m) => ({ id: m.id, host: m.host, role: m.role, reachable: false }));
   return { list, health, planet, machines };
 }
-function healthOf(health: Record<string, { state: HealthState; latencyMs?: number }>, name: string): Health {
-  const h = health[name];
+/** Keyed by service url - names collide across planets (e.g. "Copy Party"). */
+function healthOf(health: Record<string, { state: HealthState; latencyMs?: number }>, url: string): Health {
+  const h = health[url];
   if (!h) return { st: 'unknown', lat: fmtLatency(undefined) };
   return { st: h.state, lat: fmtLatency(h.latencyMs) };
 }
@@ -150,12 +151,12 @@ function ContactRings({ infra, R }: { infra: Infra; R: number }) {
     }
     const idx = i % per, tot = Math.min(per, list.length - ring * per);
     const phase = (idx / tot) * 360 + ring * 29;
-    const h = healthOf(health, s.name);
+    const h = healthOf(health, s.url);
     const dur = 50 + ring * 24;
     const stalled = h.st === 'down';
     const p = stalled ? ptOnEllipse(0, 0, rx, ry, rot, phase) : null;
     out.push(
-      <g key={s.name} className={`mote ${stClass(h.st)}`} data-svc={s.name} data-dom={infra}
+      <g key={s.url} className={`mote ${stClass(h.st)}`} data-svc={s.url} data-dom={infra}
         transform={p ? `translate(${p.x},${p.y})` : undefined}>
         {!p && (
           <animateMotion dur={`${dur}s`} repeatCount="indefinite" begin={`-${((phase / 360) * dur).toFixed(1)}s`}>
@@ -180,7 +181,7 @@ function AsteroidBelt({ cx, cy, W, H, P }: { cx: number; cy: number; W: number; 
     { key: 'req', label: 'REQ 24H', value: fmtCount(cf.totalRequests24h), detail: cf.zones.map((z) => `${z.zone} ${fmtCount(z.requests24h)}`).join(' · ') },
     { key: 'cache', label: 'CACHE', value: fmtPct((cf.averageCacheHitRatio ?? 0) * 100), detail: 'AVG CACHE HIT RATIO ACROSS ZONES' },
     { key: 'threats', label: 'THREATS', value: String(threats), detail: threats ? 'BLOCKED AT THE EDGE · 24H WINDOW' : 'NO THREATS IN 24H WINDOW', hot: threats > 0 },
-    { key: 'bw', label: 'BANDWIDTH', value: fmtCount(bandwidth) + 'B', detail: `UNIQUE VISITORS ${fmtCount(visitors)}` },
+    { key: 'bw', label: 'BANDWIDTH', value: fmtBytes(bandwidth), detail: `UNIQUE VISITORS ${fmtCount(visitors)}` },
   ];
   const rx = W * (P ? 0.465 : 0.468), ry = H * (P ? 0.47 : 0.44);
 
@@ -254,7 +255,7 @@ function PlanetAssembly({ infra, R, pos, dur, begin, flip, reduced }:
   { infra: Infra; R: number; pos: { x: number; y: number }; dur: number; begin: number; flip: boolean; reduced: boolean }) {
   const { list, health, planet, machines } = useDomainData(infra);
   const meta = META[infra];
-  const sUp = list.filter((s) => healthOf(health, s.name).st !== 'down').length;
+  const sUp = list.filter((s) => healthOf(health, s.url).st !== 'down').length;
   const mUp = planet?.aggregate.machinesUp ?? machines.filter((m) => m.reachable).length;
   const base = R * 3.9 * 0.44;
   const nameY = flip ? -(base + 30) : base + 18;
@@ -288,8 +289,8 @@ function PlanetAssembly({ infra, R, pos, dur, begin, flip, reduced }:
 function SystemScene({ W, H }: { W: number; H: number }) {
   const health = useServicesStore((s) => s.health);
   const services = useServicesStore((s) => s.services);
-  const alertCount = services.filter((s) => ['down', 'degraded'].includes(healthOf(health, s.name).st)).length;
-  const upFrac = services.length ? services.filter((s) => healthOf(health, s.name).st !== 'down').length / services.length : 1;
+  const alertCount = services.filter((s) => ['down', 'degraded'].includes(healthOf(health, s.url).st)).length;
+  const upFrac = services.length ? services.filter((s) => healthOf(health, s.url).st !== 'down').length / services.length : 1;
   const P = W < H;
   const cx = W / 2, cy = P ? H * 0.46 : H / 2;
   const o1 = P ? { rx: W * 0.40, ry: H * 0.20 } : { rx: W * 0.235, ry: W * 0.235 * 0.34 };
@@ -389,7 +390,7 @@ function PlanetScene({ infra, W, H }: { infra: Infra; W: number; H: number }) {
   };
   const stationAngle = (i: number) => -38 + i * 60;
 
-  const sUp = list.filter((s) => healthOf(health, s.name).st !== 'down').length;
+  const sUp = list.filter((s) => healthOf(health, s.url).st !== 'down').length;
   const mUp = machines.filter((m) => m.reachable).length;
   /* landscape: caption above the planet (TARGET plate owns bottom-center);
      portrait: caption in the gap between the moon fan and the station plates */
@@ -463,14 +464,14 @@ function PlanetScene({ infra, W, H }: { infra: Infra; W: number; H: number }) {
         const spread = a1 - a0;
         const a = inShell === 1 ? (a0 + a1) / 2 : a0 + (idx / (inShell - 1)) * spread + (shell % 2 ? spread * 0.04 : -spread * 0.04);
         const p = ptOnEllipse(px, py, r, r * 0.96, 0, a);
-        const h = healthOf(health, s.name);
+        const h = healthOf(health, s.url);
         const rightSide = p.x >= px;
         const anchor = P ? (p.x < 62 ? 'start' : p.x > W - 62 ? 'end' : 'middle') : rightSide ? 'start' : 'end';
         const lx = P ? (p.x < 62 ? -8 : p.x > W - 62 ? 8 : 0) : rightSide ? 12 : -12;
         const ly = P ? 16 : 3.5;
         const code = META[infra].code + String(i + 1).padStart(2, '0');
         return (
-          <g key={s.name} className={`moon mote ${stClass(h.st)}`} data-svc={s.name} data-dom={infra} transform={`translate(${p.x},${p.y})`}>
+          <g key={s.url} className={`moon mote ${stClass(h.st)}`} data-svc={s.url} data-dom={infra} transform={`translate(${p.x},${p.y})`}>
             <circle r={P ? 15 : 13} fill="transparent" />
             <g className="diam"><ContactShape st={h.st} /></g>
             <circle r={7.5} fill="none" stroke={stColor(h.st)} strokeOpacity={0.3} strokeWidth={0.7} />
@@ -491,7 +492,7 @@ function PlanetScene({ infra, W, H }: { infra: Infra; W: number; H: number }) {
 /* ---------------- root component ---------------- */
 type Tgt =
   | { kind: 'idle' }
-  | { kind: 'svc'; name: string }
+  | { kind: 'svc'; url: string }
   | { kind: 'planet'; infra: Infra }
   | { kind: 'cf'; label: string; value: string; detail: string };
 
@@ -515,17 +516,17 @@ export function Tacnav() {
 
   const alertList = useMemo(() =>
     services
-      .map((s) => ({ s, h: health[s.name] }))
+      .map((s) => ({ s, h: health[s.url] }))
       .filter((x) => x.h && (x.h.state === 'down' || x.h.state === 'degraded'))
       .map((x) => ({
-        svc: x.s.name, st: x.h!.state,
+        key: x.s.url, svc: x.s.name, st: x.h!.state,
         msg: x.h!.state === 'down' ? (x.h!.error?.toUpperCase() ?? 'NO RESPONSE') : `LATENCY ${fmtLatency(x.h!.latencyMs)}`,
       })),
     [services, health]);
 
   const counts = useMemo(() => {
     let sUp = 0, mUp = 0, mTot = 0;
-    for (const s of services) if (healthOf(health, s.name).st !== 'down') sUp++;
+    for (const s of services) if (healthOf(health, s.url).st !== 'down') sUp++;
     for (const k of INFRAS) {
       const agg = metrics?.[k]?.aggregate;
       if (agg) { mUp += agg.machinesUp; mTot += agg.machinesTotal; }
@@ -590,7 +591,7 @@ export function Tacnav() {
       root.querySelector('#xhair')?.classList.toggle('lock', !!hot);
       root.querySelector('#xco')?.classList.toggle('lock', !!hot);
       const svc = t.closest<SVGElement>('[data-svc]');
-      if (svc) { setTgt({ kind: 'svc', name: svc.dataset.svc! }); return; }
+      if (svc) { setTgt({ kind: 'svc', url: svc.dataset.svc! }); return; }
       const pl = t.closest<SVGElement>('[data-planet]');
       if (pl) { setTgt({ kind: 'planet', infra: pl.dataset.planet as Infra }); return; }
       const cf = t.closest<SVGElement>('[data-cf]');
@@ -635,10 +636,16 @@ export function Tacnav() {
     if (alertsOpen) { setAlertsOpen(false); return; }
     const svcEl = t.closest<SVGElement>('[data-svc]');
     if (svcEl) {
-      const svc = services.find((s) => s.name === svcEl.dataset.svc);
+      const svc = services.find((s) => s.url === svcEl.dataset.svc);
       if (svc) {
-        showToast(`LAUNCH ▸ ${svc.name.toUpperCase()}`);
-        window.open(svc.url, '_blank', 'noopener');
+        // Non-http entries (game servers) aren't launchable - opening them
+        // resolved as a relative path against the dashboard's own origin.
+        if (/^https?:\/\//i.test(svc.url)) {
+          showToast(`LAUNCH ▸ ${svc.name.toUpperCase()}`);
+          window.open(svc.url, '_blank', 'noopener');
+        } else {
+          showToast(`${svc.name.toUpperCase()} ▸ ${svc.url}`);
+        }
       }
       return;
     }
@@ -664,22 +671,23 @@ export function Tacnav() {
 
   const tgtBody = () => {
     if (tgt.kind === 'svc') {
-      const h = healthOf(health, tgt.name);
-      const svc = services.find((s) => s.name === tgt.name);
-      const cls = h.st === 'degraded' ? 't-warn' : h.st === 'down' ? 't-down' : 't-up';
+      const h = healthOf(health, tgt.url);
+      const svc = services.find((s) => s.url === tgt.url);
+      const cls = h.st === 'degraded' ? 't-warn' : h.st === 'down' ? 't-down' : h.st === 'unknown' ? 't-unk' : 't-up';
       return (
         <>
-          <span className="t-name">TGT // {tgt.name.toUpperCase()}</span>
+          <span className="t-name">TGT // {(svc?.name ?? tgt.url).toUpperCase()}</span>
           <div className="t-row">
             <span className={cls}>{h.st.toUpperCase()} · {h.lat}</span>
-            {svc ? ` · ${svc.url.replace(/^https?:\/\//, '')}` : ''} · CLICK TO LAUNCH
+            {` · ${tgt.url.replace(/^https?:\/\//, '')} · `}
+            {/^https?:\/\//i.test(tgt.url) ? 'CLICK TO LAUNCH' : 'NOT AN HTTP ENDPOINT'}
           </div>
         </>
       );
     }
     if (tgt.kind === 'planet') {
       const { list, health: hm, machines } = { list: services.filter((s) => s.infrastructure === tgt.infra), health: health, machines: metrics?.[tgt.infra]?.machines ?? [] };
-      const sUp = list.filter((s) => healthOf(hm, s.name).st !== 'down').length;
+      const sUp = list.filter((s) => healthOf(hm, s.url).st !== 'down').length;
       const mUp = machines.filter((m) => m.reachable).length;
       return (
         <>
@@ -754,7 +762,7 @@ export function Tacnav() {
           <h3>ALERT REGISTER</h3>
           {alertList.length
             ? alertList.map((a) => (
-              <div key={a.svc} className={a.st === 'down' ? 'a-down' : 'a-warn'}>
+              <div key={a.key} className={a.st === 'down' ? 'a-down' : 'a-warn'}>
                 {a.st === 'down' ? '✕' : '▲'} {a.svc.toUpperCase()} · {a.st.toUpperCase()} · {a.msg}
               </div>
             ))

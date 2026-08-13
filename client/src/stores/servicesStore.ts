@@ -135,6 +135,17 @@ export const useServicesStore = create<ServicesStore>((set) => ({
     if (socket) socket.disconnect();
     socket = io({ path: '/socket.io' });
 
+    // The one-shot fetches on mount lose the race if the API isn't up yet (dev
+    // stack, container start), and the client then sat at "SVCS 0/0" forever.
+    // Socket.io retries on its own, so hang the refetch off every (re)connect.
+    socket.on('connect', () => {
+      const s = useServicesStore.getState();
+      s.fetchConfig();
+      s.fetchServices();
+      s.fetchHealth();
+      s.fetchMetrics();
+    });
+
     socket.on('services:updated', (services: Service[]) => set({ services }));
     socket.on('config:updated', (config: DashboardConfig) => set({ config }));
     socket.on('metrics:updated', (metrics: AllMetrics) => set({ metrics }));
