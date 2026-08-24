@@ -25,10 +25,19 @@ RUN pnpm --filter @apseline/server deploy --prod --legacy /prod
 # ── Runtime stage ───────────────────────────────────────────────────────────
 FROM node:22-alpine AS runtime
 WORKDIR /app
+# Build provenance, surfaced by GET /api/version. Without it, answering
+# "is the deployed app current?" means diffing asset hashes out of served HTML.
+ARG GIT_SHA=unknown
+ARG GIT_REF=unknown
+ARG BUILD_TIME=unknown
+
 ENV NODE_ENV=production \
     PORT=3001 \
     CLIENT_DIST=/app/public \
-    CONFIG_PATH=/app/config.yaml
+    CONFIG_PATH=/app/config.yaml \
+    GIT_SHA=$GIT_SHA \
+    GIT_REF=$GIT_REF \
+    BUILD_TIME=$BUILD_TIME
 
 COPY --from=build /prod ./
 COPY --from=build /app/client/dist ./public

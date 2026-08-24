@@ -16,6 +16,7 @@ import { MetricsAggregator, makeCloudProviders } from './services/metrics';
 import { getAll as getLogs } from './services/logger';
 
 const PORT = process.env.PORT || 3001;
+const STARTED_AT = new Date().toISOString();
 
 async function main() {
   const app = express();
@@ -84,6 +85,21 @@ async function main() {
 
   // ── Routes ──────────────────────────────────────────────────────────────
   app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+
+  // Build provenance baked in by the Dockerfile. The one honest answer to
+  // "is the deployed app current?" - `vm`/`cloudflare` are here too because a
+  // current build with a dead backend looks identical to a stale build.
+  app.get('/api/version', (_req, res) => res.json({
+    gitSha: process.env.GIT_SHA ?? 'unknown',
+    gitRef: process.env.GIT_REF ?? 'unknown',
+    buildTime: process.env.BUILD_TIME ?? 'unknown',
+    startedAt: STARTED_AT,
+    backends: {
+      victoriametrics: vm.isConnected(),
+      cloudflare: cloudflare.isConnected(),
+      nginx: nginx.isConnected(),
+    },
+  }));
 
   app.get('/api/config', (_req, res) => {
     try { res.json(loadConfig()); }
