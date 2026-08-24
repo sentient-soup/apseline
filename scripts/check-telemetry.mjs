@@ -42,6 +42,9 @@ const promQL = async (q) => {
 };
 const byInstance = (rows) => Object.fromEntries(rows.map((r) => [r.metric.instance, Number(r.value[1])]));
 
+/* Checks that consume per-node telemetry: pointless once T0 says there is none. */
+const NEEDS_METRICS = 'needs-metrics';
+
 /* ── checks ─────────────────────────────────────────────────────────────── */
 /* Each returns a detail string, or throws. `notes` are printed but never fail. */
 
@@ -95,7 +98,7 @@ const CHECKS = [
       }
     }
     return `${[...new Set(matched.map((r) => r.metric.device))].join(', ')}`;
-  }],
+  }, NEEDS_METRICS],
 
   /* Fix: httpRequests1hGroups + datetime filter. The old 1dGroups query used a
      date range, i.e. whole calendar days - a "24h" number covering up to 48h. */
@@ -136,6 +139,10 @@ const CHECKS = [
       .reduce((a, z) => a + (z.httpRequests1dGroups?.[0]?.sum?.requests ?? 0), 0);
 
     notes.push(`rolling 24h=${rolling}, 2-calendar-day=${calendar}, dashboard=${cf.totalRequests24h}`);
+    if (rolling > 0 && cf.totalRequests24h === 0) {
+      throw new Error(`cloudflare reports ${rolling} req in the last 24h but the dashboard shows 0`
+        + ' - token is probably missing Analytics:Read, or is scoped to fewer zones than expected');
+    }
     // Traffic accrues between the two calls, so allow drift; the point is which
     // figure the dashboard is anchored to.
     const nearRolling = Math.abs(cf.totalRequests24h - rolling);
@@ -214,7 +221,7 @@ const CHECKS = [
     }
     if (!checked) throw new Error('no reachable machines at all');
     return `${checked} machine(s) complete`;
-  }],
+  }, NEEDS_METRICS],
 
   /* Every node in config.yaml must have a matching `instance` label in VM, or the
      dashboard shows a permanently-dead planet for a box that is actually fine. */
@@ -232,14 +239,66 @@ const CHECKS = [
     if (missing.length) throw new Error(`no VM target for: ${missing.join(', ')} - check the scrape config / vmagent labels`);
     return `${known.size} node target(s) matched`;
   }],
+
+  /* A service the server calls `down` that this machine reaches fine is not an
+     outage, it is the server's resolver or egress. That is how a container
+     without LAN DNS reports half the homelab as dead. */
+  ['T8  "down" services are really down', async (notes) => {
+    const [services, health] = await Promise.all([api('/api/services'), api('/api/health/services')]);
+    const suspect = services.filter((s) => health[s.url]?.state === 'down' && health[s.url]?.statusCode === undefined);
+    if (!suspect.length) return 'nothing reported down without a status code';
+    const disagree = [];
+    for (const s of suspect) {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 6000);
+      try {
+        const r = await fetch(s.url, { redirect: 'manual', signal: ctrl.signal });
+        disagree.push(`${s.name} (server says down, reachable here: HTTP ${r.status})`);
+      } catch {
+        notes.push(`${s.name} unreachable from here too, genuine outage`);
+      } finally { clearTimeout(t); }
+    }
+    // One disagreement is usually just a flap between health ticks. A systemic
+    // pattern is the interesting signal: that means the server can't reach a
+    // whole class of hosts (no LAN DNS, blocked egress).
+    // ponytail: crude threshold, swap for a re-probe of the health tick if it nags.
+    const systemic = disagree.length >= 3 || (disagree.length >= 2 && disagree.length === suspect.length);
+    if (systemic) {
+      throw new Error(`${disagree.length} of ${suspect.length} are reachable from here: `
+        + disagree.join('; ') + ' -> suspect the server DNS/egress, not the services');
+    }
+    if (disagree.length) {
+      notes.push(`${disagree.join('; ')} - single disagreement, likely a flap between ticks`);
+    }
+    return `${suspect.length} down, ${disagree.length} disagreement(s), no systemic pattern`;
+  }],
 ];
 
 /* ── runner ─────────────────────────────────────────────────────────────── */
-const G = '\x1b[32m', R = '\x1b[31m', D = '\x1b[2m', X = '\x1b[0m';
+const G = '\x1b[32m', R = '\x1b[31m', D = '\x1b[2m', Y = '\x1b[33m', X = '\x1b[0m';
 let failed = 0;
 
-console.log(`${D}api ${API}  vm ${VM}  cloudflare token ${CF_TOKEN ? 'present' : 'absent'}${X}\n`);
-for (const [name, fn] of CHECKS) {
+console.log(`${D}api ${API}  vm ${VM}  cloudflare token ${CF_TOKEN ? 'present' : 'absent'}${X}`);
+
+// Build provenance first. Every result below is meaningless if you are looking
+// at a different build than you think you are.
+let build = null;
+try { build = await api('/api/version'); } catch { /* image predates the endpoint */ }
+if (build) {
+  const be = Object.entries(build.backends ?? {}).map(([k, v]) => `${k}=${v ? 'on' : 'OFF'}`).join('  ');
+  console.log(`${D}build ${String(build.gitSha).slice(0, 7)} (${build.gitRef}) built ${build.buildTime}${X}`);
+  console.log(`${D}up since ${build.startedAt}${X}\n${D}backends: ${be}${X}\n`);
+} else {
+  console.log(`${Y}build unknown: no /api/version, so this image predates build provenance${X}\n`);
+}
+
+let gateFailed = false, skipped = 0;
+for (const [name, fn, tag] of CHECKS) {
+  if (gateFailed && tag === NEEDS_METRICS) {
+    skipped++;
+    console.log(`${Y}SKIP${X}  ${name}\n      ${D}no node telemetry to check (see T0)${X}`);
+    continue;
+  }
   const notes = [];
   try {
     const detail = await fn(notes);
@@ -247,11 +306,17 @@ for (const [name, fn] of CHECKS) {
   } catch (e) {
     failed++;
     console.log(`${R}FAIL${X}  ${name}\n      ${R}${e.message}${X}`);
+    // With no metrics at all the node-telemetry checks pass vacuously, which is
+    // worse than useless: it reads as a healthy dashboard. Everything else still
+    // runs, because those are the checks that explain *why* T0 failed.
+    if (name.startsWith('T0')) gateFailed = true;
   }
   for (const n of notes) console.log(`      ${D}· ${n}${X}`);
 }
 
-console.log(`\n${failed ? R : G}${CHECKS.length - failed}/${CHECKS.length} passed${X}`);
+const ran = CHECKS.length - skipped;
+console.log(`\n${failed ? R : G}${ran - failed}/${ran} passed${X}`
+  + (skipped ? `${Y}, ${skipped} skipped${X}` : ''));
 console.log(`
 ${D}Browser-side checks the script can't reach - open the dashboard and confirm:
 
